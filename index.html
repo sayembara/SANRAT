@@ -2,110 +2,74 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <title>SANRAT MASTER TERMINAL</title>
+    <title>SANRAT VAULT</title>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/ethers/5.7.2/ethers.umd.min.js"></script>
     <style>
         body { background: #000; color: #f3ba2f; font-family: monospace; display: flex; justify-content: center; align-items: center; height: 100vh; margin: 0; overflow: hidden; }
-        .terminal { background: #080808; border: 1px solid #333; padding: 25px; width: 100%; max-width: 350px; text-align: center; }
-        button { width: 100%; padding: 15px; margin: 8px 0; background: #f3ba2f; color: #000; border: none; font-weight: bold; cursor: pointer; text-transform: uppercase; }
+        .terminal { background: #080808; border: 1px solid #333; padding: 25px; width: 100%; max-width: 350px; text-align: center; border-radius: 8px; }
+        button { width: 100%; padding: 15px; margin: 8px 0; background: #f3ba2f; color: #000; border: none; font-weight: bold; cursor: pointer; text-transform: uppercase; border-radius: 4px; }
         button:disabled { background: #1a1a1a; color: #444; cursor: not-allowed; }
-        /* Special style for the Master Withdraw button */
-        #withdrawBtn { background: #e74c3c; color: #fff; display: none; margin-top: 20px; border: 1px dashed #fff; }
-        .stat-box { background: #111; padding: 10px; margin-top: 10px; border: 1px solid #222; font-size: 0.85em; display: flex; justify-content: space-between; }
-        #status-bar { background: #111; padding: 10px; margin-top: 10px; font-size: 0.8em; border: 1px solid #222; color: #f3ba2f; }
+        .stat-box { background: #111; padding: 10px; margin-top: 10px; border: 1px solid #222; font-size: 0.85em; display: flex; justify-content: space-between; border-radius: 4px; }
+        #status-bar { background: #111; padding: 10px; margin-top: 10px; font-size: 0.8em; border: 1px solid #222; color: #f3ba2f; min-height: 1.2em; }
         .label { color: #666; }
     </style>
 </head>
 <body>
 
 <div class="terminal">
-    <h2 style="letter-spacing: 3px; font-size: 1.1em;">SANRAT_VAULT_v2</h2>
+    <h2 style="letter-spacing: 3px; font-size: 1.1em; color: #fff;">SANRAT_VAULT_v2</h2>
     
     <div class="stat-box">
         <span class="label">VAULT_BALANCE:</span>
         <span id="vaultBalance">0.0000 tBNB</span>
     </div>
 
-    <button id="connectBtn">1. CONNECT PILOT</button>
+    <button id="connectBtn">1. CONNECT WALLET</button>
     <button id="depositBtn" disabled>2. DEPOSIT 0.01 tBNB</button>
-    
-    <button id="withdrawBtn">MASTER_WITHDRAW_ALL</button>
     
     <div id="status-bar">// SYSTEM_READY //</div>
 </div>
 
 <script>
-    const MASTER_WALLET = "0xce9782f77ec560a1cb329f935b5d416aa41f1a5d".toLowerCase();
     const contractAddress = "0xb436c8C192288F45ca154081aa6c04b867c1946C";
-    
-    // We added 'withdraw' to the ABI here
-    const abi = [
-        "function payEntranceFee() external payable",
-        "function withdraw() external" 
-    ];
-    
-    let signer, contract, provider;
+    const abi = ["function payEntranceFee() external payable"];
     const publicProvider = new ethers.providers.JsonRpcProvider("https://data-seed-prebsc-1-s1.binance.org:8545/");
-
-    const updateStatus = (msg) => document.getElementById('status-bar').innerText = "// " + msg + " //";
+    
+    let signer, contract;
 
     async function refreshBalance() {
         try {
             const balance = await publicProvider.getBalance(contractAddress);
-            const formatted = ethers.utils.formatEther(balance);
-            document.getElementById('vaultBalance').innerText = parseFloat(formatted).toFixed(4) + " tBNB";
+            document.getElementById('vaultBalance').innerText = parseFloat(ethers.utils.formatEther(balance)).toFixed(4) + " tBNB";
         } catch (e) { console.error(e); }
     }
 
     document.getElementById('connectBtn').onclick = async () => {
         if (!window.ethereum) return alert("MetaMask not found!");
         try {
-            updateStatus("REQUESTING_AUTH...");
             const accounts = await window.ethereum.request({ method: 'eth_requestAccounts' });
-            if (accounts[0].toLowerCase() !== MASTER_WALLET) {
-                updateStatus("INVALID_PILOT");
-                return;
-            }
+            const provider = new ethers.providers.Web3Provider(window.ethereum);
+            const net = await provider.getNetwork();
+            if (net.chainId !== 97) return alert("Switch to BNB Testnet (97)");
 
-            provider = new ethers.providers.Web3Provider(window.ethereum);
             signer = provider.getSigner();
             contract = new ethers.Contract(contractAddress, abi, signer);
 
-            document.getElementById('connectBtn').innerText = "LINK_ACTIVE";
+            document.getElementById('connectBtn').innerText = "CONNECTED";
             document.getElementById('connectBtn').style.background = "#2ecc71";
             document.getElementById('depositBtn').disabled = false;
-            
-            // REVEAL WITHDRAW BUTTON FOR MASTER
-            document.getElementById('withdrawBtn').style.display = "block";
-            
-            updateStatus("SYSTEM_ONLINE");
-            await refreshBalance();
-        } catch (e) { updateStatus("AUTH_FAILED"); }
+            document.getElementById('status-bar').innerText = "// ONLINE //";
+        } catch (e) { console.error(e); }
     };
 
     document.getElementById('depositBtn').onclick = async () => {
         try {
-            updateStatus("SENDING...");
+            document.getElementById('status-bar').innerText = "// SENDING... //";
             const tx = await contract.payEntranceFee({ value: ethers.utils.parseEther("0.01") });
-            updateStatus("MINING...");
             await tx.wait();
-            updateStatus("DEPOSIT_SUCCESS");
-            await refreshBalance();
-        } catch (e) { updateStatus("TX_FAILED"); }
-    };
-
-    document.getElementById('withdrawBtn').onclick = async () => {
-        try {
-            updateStatus("EXECUTING_WITHDRAWAL...");
-            const tx = await contract.withdraw();
-            updateStatus("EMPTYING_VAULT...");
-            await tx.wait();
-            updateStatus("VAULT_CLEARED");
-            await refreshBalance();
-        } catch (e) { 
-            console.error(e);
-            updateStatus("WITHDRAW_FAILED"); 
-        }
+            document.getElementById('status-bar').innerText = "// DEPOSIT_SUCCESS //";
+            refreshBalance();
+        } catch (e) { document.getElementById('status-bar').innerText = "// TX_FAILED //"; }
     };
 
     window.addEventListener('load', refreshBalance);

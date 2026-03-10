@@ -76,23 +76,36 @@
         } catch (e) { document.getElementById('status-bar').innerText = "// FAILED //"; }
     };
 
-    document.getElementById('claimBtn').onclick = async () => {
-        try {
-            const amount = ethers.utils.parseEther(document.getElementById('claimAmount').value);
-            const signature = document.getElementById('claimSig').value.trim();
-            
-            document.getElementById('status-bar').innerText = "// VERIFYING... //";
-            const tx = await contract.claimPrize(amount, signature);
-            await tx.wait();
-            document.getElementById('status-bar').innerText = "// PRIZE_CLAIMED! //";
-            refreshBalance();
-        } catch (e) { 
-            console.error(e);
-            document.getElementById('status-bar').innerText = "// INVALID_CLAIM //"; 
-        }
-    };
+document.getElementById('claimBtn').onclick = async () => {
+    try {
+        const playerAddr = await signer.getAddress();
+        const winAmount = "0.005"; // You can set this logic based on your game
+        
+        document.getElementById('status-bar').innerText = "// REQUESTING_AUTH... //";
+
+        // 1. Ask your Render Server for the Signature
+        // Replace 'YOUR_RENDER_URL' with your actual Render web service link
+        const response = await fetch(`https://YOUR_RENDER_URL.onrender.com/get-signature?playerAddress=${playerAddr}&amount=${winAmount}`);
+        const data = await response.json();
+
+        if (data.error) throw new Error(data.error);
+
+        // 2. Use that signature to call the Smart Contract
+        document.getElementById('status-bar').innerText = "// CLAIMING_ON_CHAIN... //";
+        const tx = await contract.claimPrize(data.amountWei, data.signature);
+        
+        await tx.wait();
+        document.getElementById('status-bar').innerText = "// PRIZE_CLAIMED_SUCCESSFULLY //";
+        refreshBalance();
+        
+    } catch (e) {
+        console.error(e);
+        document.getElementById('status-bar').innerText = "// CLAIM_FAILED //";
+    }
+};
 
     window.addEventListener('load', refreshBalance);
 </script>
 </body>
 </html>
+

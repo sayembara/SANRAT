@@ -78,24 +78,24 @@ async function refreshData() {
 document.getElementById('depositBtn').onclick = async () => {
     try {
         const currentFee = await contract.entranceFee();
-        document.getElementById('status-bar').innerText = "// OPENING_METAMASK... //";
+        document.getElementById('status-bar').innerText = "// WAITING_FOR_METAMASK... //";
         
         const tx = await contract.payEntranceFee({ value: currentFee });
         
-        // As soon as the user hits 'Confirm' in MetaMask, show this:
-        document.getElementById('status-bar').innerText = "// TRANSACTION_SENT: WAITING_FOR_BLOCK... //";
+        // Show this while it's in the mempool
+        document.getElementById('status-bar').innerText = "// MINING_TRANSACTION... //";
         
-        const receipt = await tx.wait(); // This is the part that "mines"
+        // Wait for the blockchain to finish
+        const receipt = await tx.wait();
         
+        // Once confirmed, update status and force a data refresh
         if (receipt.status === 1) {
-            document.getElementById('status-bar').innerText = "// DEPOSIT_CONFIRMED //";
-            refreshData(); // Refresh the balance and player count
-        } else {
-            document.getElementById('status-bar').innerText = "// TRANSACTION_REVERTED //";
+            document.getElementById('status-bar').innerText = "// DEPOSIT_SUCCESSFUL //";
+            await refreshData(); 
         }
     } catch (e) { 
         console.error(e);
-        document.getElementById('status-bar').innerText = "// USER_CANCELLED_OR_ERROR //"; 
+        document.getElementById('status-bar').innerText = "// TRANSACTION_INTERRUPTED //"; 
     }
 };
 
@@ -142,6 +142,7 @@ setInterval(refreshData, 10000);
 </script>
 </body>
 </html>
+
 
 
 

@@ -5,71 +5,91 @@
     <title>SANRAT VAULT</title>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/ethers/5.7.2/ethers.umd.min.js"></script>
     <style>
-        body { background: #000; color: #f3ba2f; font-family: monospace; display: flex; justify-content: center; align-items: center; height: 100vh; margin: 0; overflow: hidden; }
-        .terminal { background: #080808; border: 1px solid #333; padding: 25px; width: 100%; max-width: 350px; text-align: center; border-radius: 8px; }
+        body { background: #000; color: #f3ba2f; font-family: monospace; display: flex; justify-content: center; align-items: center; min-height: 100vh; margin: 0; }
+        .terminal { background: #080808; border: 1px solid #333; padding: 25px; width: 100%; max-width: 380px; text-align: center; border-radius: 8px; }
         button { width: 100%; padding: 15px; margin: 8px 0; background: #f3ba2f; color: #000; border: none; font-weight: bold; cursor: pointer; text-transform: uppercase; border-radius: 4px; }
         button:disabled { background: #1a1a1a; color: #444; cursor: not-allowed; }
-        .stat-box { background: #111; padding: 10px; margin-top: 10px; border: 1px solid #222; font-size: 0.85em; display: flex; justify-content: space-between; border-radius: 4px; }
+        input { width: 90%; padding: 12px; margin: 5px 0; background: #111; color: #fff; border: 1px solid #333; text-align: center; }
+        .stat-box { background: #111; padding: 10px; margin: 10px 0; border: 1px solid #222; font-size: 0.85em; display: flex; justify-content: space-between; border-radius: 4px; }
         #status-bar { background: #111; padding: 10px; margin-top: 10px; font-size: 0.8em; border: 1px solid #222; color: #f3ba2f; min-height: 1.2em; }
-        .label { color: #666; }
+        .claim-area { margin-top: 20px; border-top: 1px dashed #333; padding-top: 20px; display: none; }
     </style>
 </head>
 <body>
 
 <div class="terminal">
-    <h2 style="letter-spacing: 3px; font-size: 1.1em; color: #fff;">SANRAT_VAULT_v2</h2>
+    <h2 style="letter-spacing: 3px; color: #fff;">SANRAT_VAULT</h2>
     
     <div class="stat-box">
-        <span class="label">VAULT_BALANCE:</span>
+        <span>VAULT_BALANCE:</span>
         <span id="vaultBalance">0.0000 tBNB</span>
     </div>
 
     <button id="connectBtn">1. CONNECT WALLET</button>
     <button id="depositBtn" disabled>2. DEPOSIT 0.01 tBNB</button>
     
+    <div id="claimArea" class="claim-area">
+        <h3 style="font-size: 0.9em; color: #2ecc71;">REDEEM PRIZE</h3>
+        <input type="text" id="claimAmount" placeholder="Approved Amount (e.g. 0.005)">
+        <input type="text" id="claimSig" placeholder="Paste Signature Here">
+        <button id="claimBtn" style="background: #2ecc71;">3. CLAIM NOW</button>
+    </div>
+
     <div id="status-bar">// SYSTEM_READY //</div>
 </div>
 
 <script>
     const contractAddress = "0xb436c8C192288F45ca154081aa6c04b867c1946C";
-    const abi = ["function payEntranceFee() external payable"];
-    const publicProvider = new ethers.providers.JsonRpcProvider("https://data-seed-prebsc-1-s1.binance.org:8545/");
+    const abi = [
+        "function payEntranceFee() external payable",
+        "function claimPrize(uint256 amount, bytes calldata signature) external"
+    ];
     
     let signer, contract;
+    const providerRpc = new ethers.providers.JsonRpcProvider("https://data-seed-prebsc-1-s1.binance.org:8545/");
 
     async function refreshBalance() {
-        try {
-            const balance = await publicProvider.getBalance(contractAddress);
-            document.getElementById('vaultBalance').innerText = parseFloat(ethers.utils.formatEther(balance)).toFixed(4) + " tBNB";
-        } catch (e) { console.error(e); }
+        const balance = await providerRpc.getBalance(contractAddress);
+        document.getElementById('vaultBalance').innerText = parseFloat(ethers.utils.formatEther(balance)).toFixed(4) + " tBNB";
     }
 
     document.getElementById('connectBtn').onclick = async () => {
-        if (!window.ethereum) return alert("MetaMask not found!");
-        try {
-            const accounts = await window.ethereum.request({ method: 'eth_requestAccounts' });
-            const provider = new ethers.providers.Web3Provider(window.ethereum);
-            const net = await provider.getNetwork();
-            if (net.chainId !== 97) return alert("Switch to BNB Testnet (97)");
+        if (!window.ethereum) return alert("Install MetaMask");
+        const accounts = await window.ethereum.request({ method: 'eth_requestAccounts' });
+        const provider = new ethers.providers.Web3Provider(window.ethereum);
+        signer = provider.getSigner();
+        contract = new ethers.Contract(contractAddress, abi, signer);
 
-            signer = provider.getSigner();
-            contract = new ethers.Contract(contractAddress, abi, signer);
-
-            document.getElementById('connectBtn').innerText = "CONNECTED";
-            document.getElementById('connectBtn').style.background = "#2ecc71";
-            document.getElementById('depositBtn').disabled = false;
-            document.getElementById('status-bar').innerText = "// ONLINE //";
-        } catch (e) { console.error(e); }
+        document.getElementById('connectBtn').innerText = "CONNECTED";
+        document.getElementById('depositBtn').disabled = false;
+        document.getElementById('claimArea').style.display = "block";
+        document.getElementById('status-bar').innerText = "// ONLINE //";
     };
 
     document.getElementById('depositBtn').onclick = async () => {
         try {
-            document.getElementById('status-bar').innerText = "// SENDING... //";
             const tx = await contract.payEntranceFee({ value: ethers.utils.parseEther("0.01") });
+            document.getElementById('status-bar').innerText = "// MINING... //";
             await tx.wait();
-            document.getElementById('status-bar').innerText = "// DEPOSIT_SUCCESS //";
+            document.getElementById('status-bar').innerText = "// DEPOSIT_OK //";
             refreshBalance();
-        } catch (e) { document.getElementById('status-bar').innerText = "// TX_FAILED //"; }
+        } catch (e) { document.getElementById('status-bar').innerText = "// FAILED //"; }
+    };
+
+    document.getElementById('claimBtn').onclick = async () => {
+        try {
+            const amount = ethers.utils.parseEther(document.getElementById('claimAmount').value);
+            const signature = document.getElementById('claimSig').value.trim();
+            
+            document.getElementById('status-bar').innerText = "// VERIFYING... //";
+            const tx = await contract.claimPrize(amount, signature);
+            await tx.wait();
+            document.getElementById('status-bar').innerText = "// PRIZE_CLAIMED! //";
+            refreshBalance();
+        } catch (e) { 
+            console.error(e);
+            document.getElementById('status-bar').innerText = "// INVALID_CLAIM //"; 
+        }
     };
 
     window.addEventListener('load', refreshBalance);

@@ -75,23 +75,29 @@ async function refreshData() {
     }
 }
 
-    document.getElementById('connectBtn').onclick = async () => {
-        const accounts = await window.ethereum.request({ method: 'eth_requestAccounts' });
-        const userAddr = accounts[0].toLowerCase();
-        const provider = new ethers.providers.Web3Provider(window.ethereum);
-        signer = provider.getSigner();
-        contract = new ethers.Contract(contractAddress, abi, signer);
-
-        document.getElementById('connectBtn').innerText = "CONNECTED";
-        document.getElementById('depositBtn').disabled = false;
-        document.getElementById('claimBtn').style.display = "block";
+document.getElementById('depositBtn').onclick = async () => {
+    try {
+        const currentFee = await contract.entranceFee();
+        document.getElementById('status-bar').innerText = "// OPENING_METAMASK... //";
         
-        if (userAddr === MASTER_WALLET) {
-            document.getElementById('releaseBtn').style.display = "block";
+        const tx = await contract.payEntranceFee({ value: currentFee });
+        
+        // As soon as the user hits 'Confirm' in MetaMask, show this:
+        document.getElementById('status-bar').innerText = "// TRANSACTION_SENT: WAITING_FOR_BLOCK... //";
+        
+        const receipt = await tx.wait(); // This is the part that "mines"
+        
+        if (receipt.status === 1) {
+            document.getElementById('status-bar').innerText = "// DEPOSIT_CONFIRMED //";
+            refreshData(); // Refresh the balance and player count
+        } else {
+            document.getElementById('status-bar').innerText = "// TRANSACTION_REVERTED //";
         }
-        
-        document.getElementById('status-bar').innerText = "// ONLINE //";
-    };
+    } catch (e) { 
+        console.error(e);
+        document.getElementById('status-bar').innerText = "// USER_CANCELLED_OR_ERROR //"; 
+    }
+};
 
     document.getElementById('depositBtn').onclick = async () => {
         try {
@@ -136,6 +142,7 @@ setInterval(refreshData, 10000);
 </script>
 </body>
 </html>
+
 
 
 

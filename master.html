@@ -7,29 +7,32 @@
     <style>
         body { background: #000; color: #e74c3c; font-family: monospace; display: flex; justify-content: center; align-items: center; min-height: 100vh; margin: 0; }
         .terminal { background: #0a0000; border: 2px solid #e74c3c; padding: 25px; width: 100%; max-width: 400px; text-align: center; border-radius: 8px; }
-        button { width: 100%; padding: 12px; margin: 8px 0; background: #e74c3c; color: #fff; border: none; font-weight: bold; cursor: pointer; }
+        button { width: 100%; padding: 12px; margin: 8px 0; background: #e74c3c; color: #fff; border: none; font-weight: bold; cursor: pointer; text-transform: uppercase; }
         input { width: 85%; padding: 10px; margin: 10px 0; background: #000; color: #fff; border: 1px solid #e74c3c; text-align: center; }
-        #status-bar { background: #111; padding: 10px; margin-top: 10px; border: 1px solid #333; color: #e74c3c; font-size: 0.8em; }
+        #status-bar { background: #111; padding: 10px; margin-top: 10px; border: 1px solid #333; color: #e74c3c; min-height: 1.2em; font-size: 0.8em; }
     </style>
 </head>
 <body>
 
 <div class="terminal">
-    <h2 style="letter-spacing: 5px;">MASTER_ADMIN</h2>
-    <button id="connectBtn">LOGIN TO MASTER</button>
+    <h2 style="letter-spacing: 5px;">MASTER_PILOT</h2>
+    
+    <button id="connectBtn">INITIALIZE MASTER LINK</button>
 
     <div id="masterPanel" style="display:none; margin-top: 20px;">
         <input type="text" id="newFee" placeholder="New Fee (e.g. 0.05)">
-        <button id="setFeeBtn">SET DEPOSIT AMOUNT (tBNB)</button>
-        <button id="releaseBtn" style="background: #444;">RELEASE ALL TO ORGANIZER</button>
+        <button id="setFeeBtn">UPDATE DEPOSIT AMOUNT (tBNB)</button>
+        <button id="releaseBtn" style="background: #333; margin-top: 15px;">EMERGENCY RELEASE ALL</button>
     </div>
 
-    <div id="status-bar">// WAITING //</div>
+    <div id="status-bar">// WAITING_FOR_AUTH //</div>
 </div>
 
 <script>
     const MASTER_WALLET = "0xce9782f77ec560a1cb329f935b5d416aa41f1a5d".toLowerCase();
-    const contractAddress = "0x8f752169dd88b22667c22f02e9e4c35dD217411d";
+    const contractAddress = "0xb436c8C192288F45ca154081aa6c04b867c1946C";
+    
+    // Ensure this matches your Solidity exactly!
     const abi = [
         "function entranceFee() public view returns (uint256)",
         "function setEntranceFee(uint256 _newFee) external",
@@ -39,35 +42,56 @@
     let signer, contract;
 
     document.getElementById('connectBtn').onclick = async () => {
+        if (!window.ethereum) return alert("Please install MetaMask");
+        
         const accounts = await window.ethereum.request({ method: 'eth_requestAccounts' });
-        if (accounts[0].toLowerCase() !== MASTER_WALLET) return alert("UNAUTHORIZED");
+        const userAddr = accounts[0].toLowerCase();
+
+        if (userAddr !== MASTER_WALLET) {
+            document.getElementById('status-bar').innerText = "// ACCESS_DENIED //";
+            return alert("UNAUTHORIZED: Use Master Wallet");
+        }
         
         const provider = new ethers.providers.Web3Provider(window.ethereum);
         signer = provider.getSigner();
         contract = new ethers.Contract(contractAddress, abi, signer);
 
         document.getElementById('masterPanel').style.display = "block";
-        document.getElementById('status-bar').innerText = "// MASTER_LINK_OK //";
+        document.getElementById('connectBtn').innerText = "MASTER_AUTHENTICATED";
+        document.getElementById('status-bar').innerText = "// CONTROL_ACTIVE //";
     };
 
     document.getElementById('setFeeBtn').onclick = async () => {
         try {
             const feeVal = document.getElementById('newFee').value;
-            const feeWei = ethers.utils.parseEther(feeVal);
-            document.getElementById('status-bar').innerText = "// SENDING_TX... //";
-            const tx = await contract.setEntranceFee(feeWei);
+            if(!feeVal || isNaN(feeVal)) return alert("Enter a valid number");
+
+            // Convert tBNB to Wei (e.g., 0.01 -> 10000000000000000)
+            const feeInWei = ethers.utils.parseEther(feeVal);
+            
+            document.getElementById('status-bar').innerText = "// PENDING_METAMASK... //";
+            
+            // Calling the function
+            const tx = await contract.setEntranceFee(feeInWei);
+            document.getElementById('status-bar').innerText = "// MINING_TRANSACTION... //";
+            
             await tx.wait();
-            document.getElementById('status-bar').innerText = "// FEE_UPDATED //";
+            document.getElementById('status-bar').innerText = "// FEE_UPDATED_SUCCESSFULLY //";
+            document.getElementById('newFee').value = "";
         } catch (e) {
             console.error(e);
-            document.getElementById('status-bar').innerText = "// ERROR //";
+            document.getElementById('status-bar').innerText = "// TRANSACTION_FAILED //";
         }
     };
 
     document.getElementById('releaseBtn').onclick = async () => {
-        const tx = await contract.emergencyWithdraw();
-        await tx.wait();
-        document.getElementById('status-bar').innerText = "// VAULT_RELEASED //";
+        try {
+            const tx = await contract.emergencyWithdraw();
+            await tx.wait();
+            document.getElementById('status-bar').innerText = "// VAULT_RELEASED //";
+        } catch (e) {
+            document.getElementById('status-bar').innerText = "// RELEASE_FAILED //";
+        }
     };
 </script>
 </body>

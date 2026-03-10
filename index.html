@@ -22,7 +22,7 @@
 </div>
 
 <script>
-    // DOUBLE CHECK: Ensure this matches your MetaMask exactly
+    // Configuration - MUST MATCH YOUR METAMASK EXACTLY
     const MASTER_WALLET = "0xce9782f77ec560a1cb329f935b5d416aa41f1a5d".toLowerCase();
     const contractAddress = "0xb436c8C192288F45ca154081aa6c04b867c1946C";
     const abi = ["function payEntranceFee() external payable"];
@@ -35,7 +35,7 @@
 
     document.getElementById('connectBtn').onclick = async () => {
         if (typeof window.ethereum === 'undefined') {
-            alert("MetaMask not found!");
+            alert("ERROR: MetaMask not detected!");
             return;
         }
         
@@ -44,20 +44,20 @@
             const accounts = await window.ethereum.request({ method: 'eth_requestAccounts' });
             const userAddr = accounts[0].toLowerCase();
 
-            // CHECK 1: Wallet Match
+            // DIAGNOSTIC ALERT 1: Check Wallet
             if (userAddr !== MASTER_WALLET) {
-                updateStatus("INVALID_PILOT_ID");
-                alert("ACCESS DENIED\nYour Wallet: " + userAddr + "\nRequired: " + MASTER_WALLET);
+                updateStatus("INVALID_PILOT");
+                alert("ACCESS DENIED\nYour Wallet: " + userAddr + "\nExpecting: " + MASTER_WALLET);
                 return;
             }
 
             const provider = new ethers.providers.Web3Provider(window.ethereum);
             const net = await provider.getNetwork();
             
-            // CHECK 2: Network Match (97 is BSC Testnet)
+            // DIAGNOSTIC ALERT 2: Check Network (97 = BNB Testnet)
             if (net.chainId !== 97) {
                 updateStatus("WRONG_NETWORK");
-                alert("Please switch MetaMask to BNB Smart Chain Testnet (Chain ID 97)");
+                alert("WRONG NETWORK\nYou are on Chain ID: " + net.chainId + "\nPlease switch to BNB Smart Chain Testnet (97)");
                 return;
             }
 
@@ -71,21 +71,20 @@
 
         } catch (e) {
             console.error(e);
-            updateStatus("USER_REJECTED");
+            updateStatus("AUTH_FAILED");
+            alert("AUTH ERROR: Check Browser Console (F12)");
         }
     };
 
     document.getElementById('depositBtn').onclick = async () => {
         try {
-            updateStatus("SENDING_VAULT_LOCK...");
-            const tx = await contract.payEntranceFee({ 
-                value: ethers.utils.parseEther("0.01") 
-            });
-            updateStatus("MINING_TRANSACTION...");
+            updateStatus("SENDING...");
+            const tx = await contract.payEntranceFee({ value: ethers.utils.parseEther("0.01") });
+            updateStatus("WAITING_CONFIRM...");
             await tx.wait();
-            updateStatus("DEPOSIT_SUCCESSFUL");
+            updateStatus("DEPOSIT_SUCCESS");
         } catch (e) {
-            updateStatus("TRANSACTION_FAILED");
+            updateStatus("TX_FAILED");
         }
     };
 </script>

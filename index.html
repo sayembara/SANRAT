@@ -8,105 +8,99 @@
         body { background: #000; color: #f3ba2f; font-family: monospace; display: flex; justify-content: center; align-items: center; min-height: 100vh; margin: 0; }
         .terminal { background: #080808; border: 1px solid #333; padding: 25px; width: 100%; max-width: 380px; text-align: center; border-radius: 8px; }
         button { width: 100%; padding: 15px; margin: 8px 0; background: #f3ba2f; color: #000; border: none; font-weight: bold; cursor: pointer; text-transform: uppercase; border-radius: 4px; }
-        button:disabled { background: #1a1a1a; color: #444; cursor: not-allowed; }
-        input { width: 90%; padding: 12px; margin: 5px 0; background: #111; color: #fff; border: 1px solid #333; text-align: center; }
-        .stat-box { background: #111; padding: 10px; margin: 10px 0; border: 1px solid #222; font-size: 0.85em; display: flex; justify-content: space-between; border-radius: 4px; }
-        #status-bar { background: #111; padding: 10px; margin-top: 10px; font-size: 0.8em; border: 1px solid #222; color: #f3ba2f; min-height: 1.2em; }
-        .claim-area { margin-top: 20px; border-top: 1px dashed #333; padding-top: 20px; display: none; }
+        button:disabled { background: #1a1a1a; color: #444; }
+        .stat-box { background: #111; padding: 12px; margin: 10px 0; border: 1px solid #222; display: flex; justify-content: space-between; }
+        #status-bar { background: #111; padding: 10px; margin-top: 10px; border: 1px solid #222; color: #f3ba2f; min-height: 1.2em; }
+        .master-panel { margin-top: 25px; border-top: 2px solid #e74c3c; padding-top: 15px; display: none; }
     </style>
 </head>
 <body>
 
 <div class="terminal">
-    <h2 style="letter-spacing: 3px; color: #fff;">SANRAT_VAULT</h2>
-    
+    <h2 style="color: #fff;">SANRAT_VAULT</h2>
     <div class="stat-box">
-        <span>VAULT_BALANCE:</span>
+        <span>VAULT_TOTAL:</span>
         <span id="vaultBalance">0.0000 tBNB</span>
     </div>
 
     <button id="connectBtn">1. CONNECT WALLET</button>
-    <button id="depositBtn" disabled>2. DEPOSIT 0.01 tBNB</button>
+    <button id="depositBtn" disabled>2. DEPOSIT <span id="displayFee">0.01</span> tBNB</button>
+    <button id="claimBtn" style="display:none; background: #2ecc71;">3. CLAIM ALL FUNDS (100%)</button>
     
-    <div id="claimArea" class="claim-area">
-        <h3 style="font-size: 0.9em; color: #2ecc71;">REDEEM PRIZE</h3>
-        <input type="text" id="claimAmount" placeholder="Approved Amount (e.g. 0.005)">
-        <input type="text" id="claimSig" placeholder="Paste Signature Here">
-        <button id="claimBtn" style="background: #2ecc71;">3. CLAIM NOW</button>
+    <div id="masterPanel" class="master-panel">
+        <h3 style="color: #e74c3c; font-size: 0.8em;">MASTER_CONTROLS</h3>
+        <button id="releaseBtn" style="background: #e74c3c; color: white; font-size: 0.8em;">EMERGENCY RELEASE</button>
     </div>
 
-    <div id="status-bar">// SYSTEM_READY //</div>
+    <div id="status-bar">// SYSTEM_OFFLINE //</div>
 </div>
 
 <script>
+    const MASTER_WALLET = "0xce9782f77ec560a1cb329f935b5d416aa41f1a5d".toLowerCase();
     const contractAddress = "0xb436c8C192288F45ca154081aa6c04b867c1946C";
+    const RENDER_URL = "https://sanrat-vault-backend.onrender.com";
+    
     const abi = [
         "function payEntranceFee() external payable",
-        "function claimPrize(uint256 amount, bytes calldata signature) external"
+        "function entranceFee() public view returns (uint256)",
+        "function claimPrize(uint256 amount, bytes calldata signature) external",
+        "function emergencyWithdraw() external"
     ];
-    
+
     let signer, contract;
     const providerRpc = new ethers.providers.JsonRpcProvider("https://data-seed-prebsc-1-s1.binance.org:8545/");
 
-    async function refreshBalance() {
-        const balance = await providerRpc.getBalance(contractAddress);
-        document.getElementById('vaultBalance').innerText = parseFloat(ethers.utils.formatEther(balance)).toFixed(4) + " tBNB";
+    async function refreshData() {
+        try {
+            const balance = await providerRpc.getBalance(contractAddress);
+            const contractReadOnly = new ethers.Contract(contractAddress, abi, providerRpc);
+            const fee = await contractReadOnly.entranceFee();
+            document.getElementById('vaultBalance').innerText = ethers.utils.formatEther(balance) + " tBNB";
+            document.getElementById('displayFee').innerText = ethers.utils.formatEther(fee);
+        } catch (e) { console.error(e); }
     }
 
     document.getElementById('connectBtn').onclick = async () => {
-        if (!window.ethereum) return alert("Install MetaMask");
         const accounts = await window.ethereum.request({ method: 'eth_requestAccounts' });
+        const userAddr = accounts[0].toLowerCase();
         const provider = new ethers.providers.Web3Provider(window.ethereum);
         signer = provider.getSigner();
         contract = new ethers.Contract(contractAddress, abi, signer);
 
         document.getElementById('connectBtn').innerText = "CONNECTED";
         document.getElementById('depositBtn').disabled = false;
-        document.getElementById('claimArea').style.display = "block";
+        document.getElementById('claimBtn').style.display = "block";
+
+        if (userAddr === MASTER_WALLET) {
+            document.getElementById('masterPanel').style.display = "block";
+        }
         document.getElementById('status-bar').innerText = "// ONLINE //";
     };
 
-    document.getElementById('depositBtn').onclick = async () => {
+    document.getElementById('claimBtn').onclick = async () => {
         try {
-            const tx = await contract.payEntranceFee({ value: ethers.utils.parseEther("0.01") });
-            document.getElementById('status-bar').innerText = "// MINING... //";
+            const playerAddr = await signer.getAddress();
+            const balance = await providerRpc.getBalance(contractAddress);
+            const amountStr = ethers.utils.formatEther(balance);
+            
+            document.getElementById('status-bar').innerText = "// FETCHING_SIG... //";
+            const response = await fetch(`${RENDER_URL}/get-signature?playerAddress=${playerAddr}&amount=${amountStr}`);
+            const data = await response.json();
+
+            const tx = await contract.claimPrize(data.amountWei, data.signature);
             await tx.wait();
-            document.getElementById('status-bar').innerText = "// DEPOSIT_OK //";
-            refreshBalance();
-        } catch (e) { document.getElementById('status-bar').innerText = "// FAILED //"; }
+            document.getElementById('status-bar').innerText = "// CLAIM_SUCCESS //";
+            refreshData();
+        } catch (e) { document.getElementById('status-bar').innerText = "// ERROR //"; }
     };
 
-document.getElementById('claimBtn').onclick = async () => {
-    try {
-        const playerAddr = await signer.getAddress();
-        const winAmount = "0.005"; // You can set this logic based on your game
-        
-        document.getElementById('status-bar').innerText = "// REQUESTING_AUTH... //";
-
-        // 1. Ask your Render Server for the Signature
-        // Replace 'YOUR_RENDER_URL' with your actual Render web service link
-        const response = await fetch(`https://sanrat-vault-backend.onrender.com/get-signature?playerAddress=${playerAddr}&amount=${winAmount}`);
-        const data = await response.json();
-
-        if (data.error) throw new Error(data.error);
-
-        // 2. Use that signature to call the Smart Contract
-        document.getElementById('status-bar').innerText = "// CLAIMING_ON_CHAIN... //";
-        const tx = await contract.claimPrize(data.amountWei, data.signature);
-        
+    document.getElementById('releaseBtn').onclick = async () => {
+        const tx = await contract.emergencyWithdraw();
         await tx.wait();
-        document.getElementById('status-bar').innerText = "// PRIZE_CLAIMED_SUCCESSFULLY //";
-        refreshBalance();
-        
-    } catch (e) {
-        console.error(e);
-        document.getElementById('status-bar').innerText = "// CLAIM_FAILED //";
-    }
-};
+        refreshData();
+    };
 
-    window.addEventListener('load', refreshBalance);
+    window.addEventListener('load', refreshData);
 </script>
 </body>
 </html>
-
-

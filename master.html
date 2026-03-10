@@ -2,112 +2,90 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <title>SANRAT MASTER CONTROL</title>
+    <title>MASTER CONTROL</title>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/ethers/5.7.2/ethers.umd.min.js"></script>
     <style>
-        body { background: #000; color: #e74c3c; font-family: monospace; display: flex; justify-content: center; align-items: center; height: 100vh; margin: 0; }
-        .terminal { background: #0a0000; border: 2px solid #e74c3c; padding: 25px; width: 100%; max-width: 350px; text-align: center; box-shadow: 0 0 15px rgba(231, 76, 60, 0.2); }
+        body { background: #000; color: #e74c3c; font-family: monospace; display: flex; justify-content: center; align-items: center; min-height: 100vh; margin: 0; }
+        .terminal { background: #0a0000; border: 2px solid #e74c3c; padding: 25px; width: 100%; max-width: 400px; text-align: center; border-radius: 8px; }
         button { width: 100%; padding: 15px; margin: 8px 0; background: #e74c3c; color: #fff; border: none; font-weight: bold; cursor: pointer; text-transform: uppercase; }
-        #withdrawBtn { background: #c0392b; border: 2px solid #fff; margin-top: 20px; display: none; }
-        .stat-box { background: #1a0000; padding: 10px; margin-top: 10px; border: 1px solid #400; display: flex; justify-content: space-between; }
+        input { width: 85%; padding: 12px; margin: 10px 0; background: #000; color: #fff; border: 1px solid #e74c3c; text-align: center; }
+        .stat-box { background: #1a0000; padding: 12px; margin: 10px 0; border: 1px solid #400; display: flex; justify-content: space-between; }
         #status-bar { background: #111; padding: 10px; margin-top: 10px; border: 1px solid #333; color: #e74c3c; min-height: 1.2em; }
     </style>
 </head>
 <body>
 
-<div class="terminal" style="border-color: #e74c3c;">
-    <h2 style="color: #e74c3c;">MASTER_CONTROL</h2>
+<div class="terminal">
+    <h2 style="letter-spacing: 5px;">MASTER_AUTH</h2>
     
     <div class="stat-box">
-        <span>VAULT_TOTAL:</span>
-        <span id="vaultBalance">0.0000 tBNB</span>
+        <span style="color: #666;">VAULT_TOTAL:</span>
+        <span id="vaultBalance" style="color: #fff;">0.0000 tBNB</span>
     </div>
 
-    <button id="connectBtn">AUTHENTICATE MASTER</button>
+    <button id="connectBtn">INITIALIZE MASTER LINK</button>
 
-    <div id="controls" style="display:none; margin-top:20px;">
-        <div style="margin-bottom: 20px;">
-            <input type="text" id="newFee" placeholder="New Fee (e.g. 0.05)" style="width: 80%; padding: 10px; margin-bottom: 5px; background: #000; color: #fff; border: 1px solid #e74c3c;">
-            <button id="setFeeBtn" style="background: #e74c3c; color: #fff;">SET NEW ENTRANCE FEE</button>
-        </div>
-
-        <button id="releaseBtn" style="background: #444; color: #fff;">EMERGENCY RELEASE ALL FUNDS</button>
+    <div id="masterPanel" style="display:none; margin-top: 20px;">
+        <input type="text" id="newFee" placeholder="New Fee (e.g. 0.05)">
+        <button id="setFeeBtn">UPDATE DEPOSIT AMOUNT</button>
+        <hr style="border: 0; border-top: 1px dashed #400; margin: 20px 0;">
+        <button id="releaseBtn" style="background: #444;">EMERGENCY RELEASE ALL</button>
     </div>
 
-    <div id="status-bar">// WAITING_FOR_AUTH //</div>
+    <div id="status-bar">// WAITING_FOR_MASTER //</div>
 </div>
 
 <script>
-    // This MUST be the wallet that originally deployed the contract
     const MASTER_WALLET = "0xce9782f77ec560a1cb329f935b5d416aa41f1a5d".toLowerCase();
     const contractAddress = "0xb436c8C192288F45ca154081aa6c04b867c1946C";
-    
-    // Updated ABI to match your .sol file exactly
-    const abi = ["function emergencyWithdraw() external"];
-    
-    const publicProvider = new ethers.providers.JsonRpcProvider("https://data-seed-prebsc-1-s1.binance.org:8545/");
+    const abi = [
+        "function entranceFee() public view returns (uint256)",
+        "function setEntranceFee(uint256 _newFee) external",
+        "function emergencyWithdraw() external"
+    ];
 
-    async function refreshBalance() {
-        try {
-            const balance = await publicProvider.getBalance(contractAddress);
-            document.getElementById('vaultBalance').innerText = parseFloat(ethers.utils.formatEther(balance)).toFixed(4) + " tBNB";
-        } catch (e) { console.error(e); }
+    let signer, contract;
+    const providerRpc = new ethers.providers.JsonRpcProvider("https://data-seed-prebsc-1-s1.binance.org:8545/");
+
+    async function refreshData() {
+        const balance = await providerRpc.getBalance(contractAddress);
+        document.getElementById('vaultBalance').innerText = ethers.utils.formatEther(balance) + " tBNB";
     }
 
-document.getElementById('connectBtn').onclick = async () => {
+    document.getElementById('connectBtn').onclick = async () => {
         const accounts = await window.ethereum.request({ method: 'eth_requestAccounts' });
-        if (accounts[0].toLowerCase() !== MASTER_WALLET) {
-            alert("ACCESS DENIED");
-            return;
-        }
+        if (accounts[0].toLowerCase() !== MASTER_WALLET) return alert("DENIED");
+        
+        const provider = new ethers.providers.Web3Provider(window.ethereum);
+        signer = provider.getSigner();
+        contract = new ethers.Contract(contractAddress, abi, signer);
 
-            const provider = new ethers.providers.Web3Provider(window.ethereum);
-            const signer = provider.getSigner();
-            const contract = new ethers.Contract(contractAddress, abi, signer);
+        document.getElementById('masterPanel').style.display = "block";
+        document.getElementById('connectBtn').innerText = "MASTER_AUTHENTICATED";
+        document.getElementById('status-bar').innerText = "// CONTROL_ACTIVE //";
+    };
 
-            document.getElementById('connectBtn').innerText = "MASTER_AUTHENTICATED";
-            document.getElementById('connectBtn').style.background = "#27ae60";
-            document.getElementById('withdrawBtn').style.display = "block";
-            document.getElementById('status-bar').innerText = "// CONTROL_ACTIVE //";
-
-document.getElementById('setFeeBtn').onclick = async () => {
+    document.getElementById('setFeeBtn').onclick = async () => {
         try {
-            const feeInput = document.getElementById('newFee').value;
-            const feeInWei = ethers.utils.parseEther(feeInput);
-            
+            const feeVal = document.getElementById('newFee').value;
+            const feeInWei = ethers.utils.parseEther(feeVal);
             document.getElementById('status-bar').innerText = "// UPDATING_FEE... //";
             const tx = await contract.setEntranceFee(feeInWei);
             await tx.wait();
             document.getElementById('status-bar').innerText = "// FEE_UPDATED //";
-        } catch (e) {
-            document.getElementById('status-bar').innerText = "// UPDATE_FAILED //";
-        }
+        } catch (e) { document.getElementById('status-bar').innerText = "// FAILED //"; }
     };
 
     document.getElementById('releaseBtn').onclick = async () => {
-        const tx = await contract.emergencyWithdraw();
-        await tx.wait();
-        document.getElementById('status-bar').innerText = "// FUNDS_RELEASED //";
-    };
-    
-            document.getElementById('withdrawBtn').onclick = async () => {
-                try {
-                    document.getElementById('status-bar').innerText = "// INITIATING_DRAIN... //";
-                    // Calling the correct function name from your .sol file
-                    const tx = await contract.emergencyWithdraw();
-                    document.getElementById('status-bar').innerText = "// MINING_TRANSACTION... //";
-                    await tx.wait();
-                    document.getElementById('status-bar').innerText = "// VAULT_CLEARED //";
-                    refreshBalance();
-                } catch (e) { 
-                    console.error(e);
-                    document.getElementById('status-bar').innerText = "// WITHDRAW_REJECTED //"; 
-                }
-            };
-        } catch (e) { document.getElementById('status-bar').innerText = "// AUTH_FAILED //"; }
+        try {
+            const tx = await contract.emergencyWithdraw();
+            await tx.wait();
+            document.getElementById('status-bar').innerText = "// VAULT_RELEASED //";
+            refreshData();
+        } catch (e) { document.getElementById('status-bar').innerText = "// DENIED //"; }
     };
 
-    window.addEventListener('load', refreshBalance);
+    window.addEventListener('load', refreshData);
 </script>
 </body>
 </html>

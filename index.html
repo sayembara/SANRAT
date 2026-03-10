@@ -30,26 +30,36 @@
     <div id="status-bar">// SYSTEM_READY //</div>
 </div>
 
+// ... existing styles ...
+
 <script>
     const MASTER_WALLET = "0xce9782f77ec560a1cb329f935b5d416aa41f1a5d".toLowerCase();
     const contractAddress = "0xb436c8C192288F45ca154081aa6c04b867c1946C";
     const abi = ["function payEntranceFee() external payable"];
     
-    let signer, contract, provider;
-
-    const updateStatus = (msg) => document.getElementById('status-bar').innerText = "// " + msg + " //";
+    // We use a public RPC so the balance shows even WITHOUT MetaMask connected
+    const publicProvider = new ethers.providers.JsonRpcProvider("https://data-seed-prebsc-1-s1.binance.org:8545/");
 
     async function refreshBalance() {
-        if (!provider) return;
         try {
-            // We check the balance of the contract address directly
-            const balance = await provider.getBalance(contractAddress);
+            const balance = await publicProvider.getBalance(contractAddress);
             const formatted = ethers.utils.formatEther(balance);
             document.getElementById('vaultBalance').innerText = parseFloat(formatted).toFixed(4) + " tBNB";
+            console.log("Balance Updated:", formatted);
         } catch (e) {
             console.error("Balance fetch failed", e);
         }
     }
+
+    // TRIGGER BALANCE ON LOAD
+    window.addEventListener('load', () => {
+        refreshBalance();
+        // Refresh every 30 seconds automatically
+        setInterval(refreshBalance, 30000);
+    });
+
+    // ... rest of your connectBtn.onclick and depositBtn.onclick logic ...
+</script>
 
     document.getElementById('connectBtn').onclick = async () => {
         if (typeof window.ethereum === 'undefined') return alert("MetaMask not found!");
@@ -92,3 +102,4 @@
 </script>
 </body>
 </html>
+

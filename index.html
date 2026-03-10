@@ -9,57 +9,62 @@
         .terminal { background: #080808; border: 1px solid #333; padding: 25px; width: 100%; max-width: 350px; text-align: center; }
         button { width: 100%; padding: 15px; margin: 8px 0; background: #f3ba2f; color: #000; border: none; font-weight: bold; cursor: pointer; text-transform: uppercase; }
         button:disabled { background: #1a1a1a; color: #444; cursor: not-allowed; }
-        #status-bar { background: #111; padding: 10px; margin-top: 15px; font-size: 0.8em; border: 1px solid #222; min-height: 1.2em; }
+        .stat-box { background: #111; padding: 10px; margin-top: 10px; border: 1px solid #222; font-size: 0.85em; display: flex; justify-content: space-between; }
+        #status-bar { background: #111; padding: 10px; margin-top: 10px; font-size: 0.8em; border: 1px solid #222; color: #f3ba2f; }
+        .label { color: #666; }
     </style>
 </head>
 <body>
 
 <div class="terminal">
     <h2 style="letter-spacing: 3px; font-size: 1.1em;">SANRAT_VAULT_v2</h2>
+    
+    <div class="stat-box">
+        <span class="label">VAULT_BALANCE:</span>
+        <span id="vaultBalance">0.0000 tBNB</span>
+    </div>
+
     <button id="connectBtn">1. CONNECT PILOT</button>
     <button id="depositBtn" disabled>2. DEPOSIT 0.01 tBNB</button>
+    
     <div id="status-bar">// SYSTEM_READY //</div>
 </div>
 
 <script>
-    // Configuration - MUST MATCH YOUR METAMASK EXACTLY
     const MASTER_WALLET = "0xce9782f77ec560a1cb329f935b5d416aa41f1a5d".toLowerCase();
     const contractAddress = "0xb436c8C192288F45ca154081aa6c04b867c1946C";
     const abi = ["function payEntranceFee() external payable"];
     
-    let signer, contract;
+    let signer, contract, provider;
 
-    const updateStatus = (msg) => {
-        document.getElementById('status-bar').innerText = "// " + msg + " //";
+    const updateStatus = (msg) => document.getElementById('status-bar').innerText = "// " + msg + " //";
+
+    async function refreshBalance() {
+        if (!provider) return;
+        try {
+            // We check the balance of the contract address directly
+            const balance = await provider.getBalance(contractAddress);
+            const formatted = ethers.utils.formatEther(balance);
+            document.getElementById('vaultBalance').innerText = parseFloat(formatted).toFixed(4) + " tBNB";
+        } catch (e) {
+            console.error("Balance fetch failed", e);
+        }
     }
 
     document.getElementById('connectBtn').onclick = async () => {
-        if (typeof window.ethereum === 'undefined') {
-            alert("ERROR: MetaMask not detected!");
-            return;
-        }
+        if (typeof window.ethereum === 'undefined') return alert("MetaMask not found!");
         
         try {
             updateStatus("REQUESTING_AUTH...");
             const accounts = await window.ethereum.request({ method: 'eth_requestAccounts' });
-            const userAddr = accounts[0].toLowerCase();
-
-            // DIAGNOSTIC ALERT 1: Check Wallet
-            if (userAddr !== MASTER_WALLET) {
+            if (accounts[0].toLowerCase() !== MASTER_WALLET) {
                 updateStatus("INVALID_PILOT");
-                alert("ACCESS DENIED\nYour Wallet: " + userAddr + "\nExpecting: " + MASTER_WALLET);
                 return;
             }
 
-            const provider = new ethers.providers.Web3Provider(window.ethereum);
+            provider = new ethers.providers.Web3Provider(window.ethereum);
             const net = await provider.getNetwork();
-            
-            // DIAGNOSTIC ALERT 2: Check Network (97 = BNB Testnet)
-            if (net.chainId !== 97) {
-                updateStatus("WRONG_NETWORK");
-                alert("WRONG NETWORK\nYou are on Chain ID: " + net.chainId + "\nPlease switch to BNB Smart Chain Testnet (97)");
-                return;
-            }
+            if (net.chainId !== 97) return alert("Switch to BNB Testnet (97)");
 
             signer = provider.getSigner();
             contract = new ethers.Contract(contractAddress, abi, signer);
@@ -67,13 +72,11 @@
             document.getElementById('connectBtn').innerText = "LINK_ACTIVE";
             document.getElementById('connectBtn').style.background = "#2ecc71";
             document.getElementById('depositBtn').disabled = false;
+            
             updateStatus("SYSTEM_ONLINE");
+            await refreshBalance();
 
-        } catch (e) {
-            console.error(e);
-            updateStatus("AUTH_FAILED");
-            alert("AUTH ERROR: Check Browser Console (F12)");
-        }
+        } catch (e) { updateStatus("AUTH_FAILED"); }
     };
 
     document.getElementById('depositBtn').onclick = async () => {
@@ -83,9 +86,8 @@
             updateStatus("WAITING_CONFIRM...");
             await tx.wait();
             updateStatus("DEPOSIT_SUCCESS");
-        } catch (e) {
-            updateStatus("TX_FAILED");
-        }
+            await refreshBalance(); // Update balance after deposit
+        } catch (e) { updateStatus("TX_FAILED"); }
     };
 </script>
 </body>

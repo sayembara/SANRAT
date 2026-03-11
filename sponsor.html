@@ -3,29 +3,27 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>NUCLEAR_SPONSOR_V3.3_SYNC</title>
+    <title>NUCLEAR_F1_CONTROL_v4.1</title>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/ethers/5.7.2/ethers.umd.min.js"></script>
     <style>
         :root { --accent: #f3ba2f; --bg: #000; --panel: #0a0a0a; --border: #222; --boost: #3498db; --danger: #e74c3c; --success: #2ecc71; --disabled: #1a1a1a; }
         body { background: var(--bg); color: #fff; font-family: 'Courier New', monospace; margin: 0; padding: 20px; display: flex; justify-content: center; }
-        .container { width: 100%; max-width: 1100px; display: grid; grid-template-columns: 1fr 340px; gap: 20px; }
-        .panel { background: var(--panel); border: 1px solid var(--border); padding: 20px; border-radius: 4px; margin-bottom: 20px; }
+        
+        #auth-gate { position: fixed; inset: 0; background: #000; z-index: 9999; display: flex; align-items: center; justify-content: center; }
+        .auth-box { background: var(--panel); border: 1px solid var(--accent); padding: 40px; width: 320px; text-align: center; }
+        
+        #dashboard { display: none; width: 100%; max-width: 1100px; grid-template-columns: 1fr 340px; gap: 20px; }
+        .panel { background: var(--panel); border: 1px solid var(--border); padding: 20px; border-radius: 4px; margin-bottom: 20px; position: relative; }
         h3 { color: var(--accent); margin-top: 0; font-size: 0.9em; letter-spacing: 2px; border-bottom: 1px solid var(--border); padding-bottom: 10px; margin-bottom: 15px; }
         
         .buckets-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; }
-        .bucket { background: #080808; border: 1px solid #1a1a1a; padding: 10px; font-size: 0.8em; border-left: 3px solid #333; transition: all 0.2s ease-in-out; }
-        .bucket.past { background: var(--disabled); border-color: #333; opacity: 0.4; filter: grayscale(1); }
-        .bucket.active { border-color: var(--boost); background: #0f172a; box-shadow: 0 0 15px rgba(52, 152, 219, 0.3); transform: scale(1.02); z-index: 2; }
+        .bucket { background: #080808; border: 1px solid #1a1a1a; padding: 10px; font-size: 0.8em; border-left: 3px solid #333; transition: 0.3s ease; }
+        .bucket.past { opacity: 0.35; filter: grayscale(1); border-left-color: #444; }
+        .bucket.active { border-color: var(--boost); background: #0f172a; box-shadow: 0 0 15px rgba(52, 152, 219, 0.2); border-left-color: var(--boost); transform: translateY(-2px); }
         
         .val-line { display: flex; justify-content: space-between; margin: 2px 0; }
-        .n-text { color: var(--accent); } .b-text { color: var(--boost); }
-        
-        .summary-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-top: 10px; }
-        .stat-card { background: #111; padding: 15px; border: 1px solid #222; text-align: center; }
-        .stat-label { font-size: 0.6em; color: #666; display: block; text-transform: uppercase; }
-
-        input, select { width: 100%; padding: 12px; background: #000; border: 1px solid #333; color: #fff; margin-bottom: 10px; box-sizing: border-box; font-family: inherit; }
-        button { width: 100%; padding: 14px; border: none; font-weight: bold; cursor: pointer; text-transform: uppercase; margin-bottom: 8px; font-size: 0.75em; font-family: inherit; }
+        input, select { width: 100%; padding: 12px; background: #000; border: 1px solid #333; color: #fff; margin-bottom: 10px; font-family: inherit; }
+        button { width: 100%; padding: 14px; border: none; font-weight: bold; cursor: pointer; text-transform: uppercase; font-family: inherit; font-size: 0.7em; }
         .btn-acc { background: var(--accent); color: #000; }
         .btn-boost { background: var(--boost); color: #fff; }
         .btn-danger { background: var(--danger); color: #fff; }
@@ -34,69 +32,70 @@
 </head>
 <body>
 
-<div class="container">
+<div id="auth-gate">
+    <div class="auth-box">
+        <h3 style="border:none;">SYSTEM_LOCK</h3>
+        <input type="email" id="email" placeholder="ADMIN_EMAIL">
+        <input type="password" id="password" placeholder="SECRET_KEY">
+        <button class="btn-acc" id="btnLogin">AUTHORIZE</button>
+        <p id="auth-error" style="color:var(--danger); font-size:0.7em; margin-top:10px;"></p>
+    </div>
+</div>
+
+<div id="dashboard">
     <div class="main-col">
         <div class="panel">
-            <h3>SEASON_VAULT_SENSORS</h3>
+            <h3>SEASON_VAULT_SENSORS <span id="sync-light" style="float:right; color:var(--success); font-size:0.7em;">● LIVE</span></h3>
             <div class="buckets-grid" id="bucketDisplay"></div>
-            
-            <div class="summary-grid">
-                <div class="stat-card" style="border-color: var(--success);">
-                    <span class="stat-label">Vault Overflow</span>
-                    <span class="stat-value" id="valOverflow" style="color:var(--success)">0.000</span>
+            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-top: 15px;">
+                <div style="background:#111; padding:15px; border:1px solid #222; text-align:center;">
+                    <small style="color:#666;">OVERFLOW_POOL</small><br>
+                    <span id="valOverflow" style="color:var(--success); font-weight:bold;">0.000</span>
                 </div>
-                <div class="stat-card" style="border-color: var(--boost);">
-                    <span class="stat-label">Season Total Payout</span>
-                    <span class="stat-value" id="valTotalDistributed" style="color:var(--boost)">0.000</span>
+                <div style="background:#111; padding:15px; border:1px solid #222; text-align:center;">
+                    <small style="color:#666;">SEASON_TOTAL_PAID</small><br>
+                    <span id="valTotalDistributed" style="color:var(--boost); font-weight:bold;">0.000</span>
                 </div>
             </div>
         </div>
-
         <div class="panel">
             <h3>GLOBAL_CONSTRAINTS</h3>
-            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 15px;">
-                <div>
-                    <input type="number" id="setMin" step="0.1" placeholder="Min Per Round">
-                    <button class="btn-acc" id="btnSetMin">SET_MIN [<span id="lblMin">...</span>]</button>
-                </div>
-                <div>
-                    <input type="number" id="setMax" step="0.1" placeholder="Max Per Round">
-                    <button class="btn-acc" id="btnSetMax">SET_MAX [<span id="lblMax">...</span>]</button>
-                </div>
+            <div style="display:grid; grid-template-columns:1fr 1fr; gap:15px;">
+                <div><input type="number" id="setMin" step="0.1"><button class="btn-acc" id="btnSetMin">SET_MIN [<span id="lblMin">?</span>]</button></div>
+                <div><input type="number" id="setMax" step="0.1"><button class="btn-acc" id="btnSetMax">SET_MAX [<span id="lblMax">?</span>]</button></div>
             </div>
         </div>
     </div>
 
     <div class="side-col">
         <div class="panel">
-            <h3>SPONSOR_INJECTION</h3>
+            <h3>INJECT_FUNDS</h3>
             <select id="modeSelect">
-                <option value="normal">NORMAL_POOL (PHASE 1-2)</option>
-                <option value="boost">BOOST_POOL (FIXED SPLIT)</option>
+                <option value="normal">NORMAL (FILL BUCKETS)</option>
+                <option value="boost">BOOST (FIXED SPLIT)</option>
             </select>
-            <input type="number" id="sponsorAmt" placeholder="Amount tBNB">
-            <button class="btn-acc" id="btnSponsor">INJECT_FUNDS</button>
+            <input type="number" id="sponsorAmt" placeholder="0.00 tBNB">
+            <button class="btn-acc" id="btnSponsor">CONFIRM_DEPOSIT</button>
         </div>
-
-        <div class="panel" style="border-color: var(--boost);">
-            <h3>RACE_CONTROL_UNIT</h3>
-            <div class="val-line" style="font-size:0.8em; margin-bottom:10px;">
-                <span>ACTIVE_ROUND:</span><span id="simActiveRound" style="color:var(--boost); font-weight:bold;">-</span>
-            </div>
-            <button class="btn-boost" id="btnInstantResolve">END ROUND & PAYOUT</button>
-            <div id="sim-status" style="font-size:0.65em; color:var(--boost); text-align:center; margin-top:5px;">// STANDBY //</div>
+        <div class="panel" style="border-color:var(--boost);">
+            <h3>RACE_CONTROL</h3>
+            <div class="val-line"><span>ACTIVE_ROUND:</span><span id="simActiveRound" style="color:var(--boost); font-weight:bold;">-</span></div>
+            <button class="btn-boost" id="btnInstantResolve" style="margin-top:10px;">END RACE & PAYOUT</button>
+            <div id="sim-status" style="font-size:0.6em; color:var(--boost); text-align:center; margin-top:5px;">READY</div>
         </div>
-
         <div class="panel">
-            <h3>SYSTEM_PURGE</h3>
             <button class="btn-danger" id="btnReset">REALLOCATE_CURRENT</button>
-            <button class="btn-ghost" id="btnZero">FULL_SEASON_WIPE</button>
+            <button class="btn-ghost" id="btnZero" style="margin-top:5px;">HARD_RESET_SEASON</button>
+            <button id="btnLogout" class="btn-ghost" style="margin-top:20px; border:none; font-size:0.6em;">DISCONNECT</button>
         </div>
     </div>
 </div>
 
+
+
 <script type="module">
     import { initializeApp } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js";
+    import { getAuth, signInWithEmailAndPassword, onAuthStateChanged, signOut } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-auth.js";
     import { getDatabase, ref, onValue, get, update, set } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-database.js";
 
     const firebaseConfig = {
@@ -110,199 +109,128 @@
     };
 
     const app = initializeApp(firebaseConfig);
+    const auth = getAuth(app);
     const db = getDatabase(app);
-
     let currentActiveRound = 1;
 
-    // Initial grid render
+    // Build UI
     const grid = document.getElementById('bucketDisplay');
     for(let i=1; i<=12; i++) {
-        grid.innerHTML += `
-            <div class="bucket" id="bCard${i}">
-                <div id="statusLabel${i}" style="color:#555; margin-bottom:5px; font-size:0.7em;">RND_${String(i).padStart(2,'0')}</div>
-                <div class="val-line">N: <span class="n-text" id="rN${i}">0.00</span></div>
-                <div class="val-line">B: <span class="b-text" id="rB${i}">0.00</span></div>
-                <div class="val-line" style="border-top:1px solid #222; margin-top:5px; padding-top:2px; font-weight:bold;">
-                    Σ <span id="rT${i}">0.00</span>
-                </div>
-            </div>`;
+        grid.innerHTML += `<div class="bucket" id="bCard${i}">
+            <div id="statusLabel${i}" style="color:#555; font-size:0.65em; margin-bottom:5px;">RND_${i}</div>
+            <div class="val-line">N: <span id="rN${i}" class="n-text">0.0</span></div>
+            <div class="val-line">B: <span id="rB${i}" class="b-text">0.0</span></div>
+            <div class="val-line" style="border-top:1px solid #222; margin-top:5px; font-weight:bold;">Σ <span id="rT${i}">0.0</span></div>
+        </div>`;
     }
 
-    // MASTER REFRESH FUNCTION
-    function refreshUI(vaultData) {
-        if (!vaultData) return;
-        const config = vaultData.config || { min: 0.5, max: 2.0 };
-        document.getElementById('lblMin').innerText = config.min;
-        document.getElementById('lblMax').innerText = config.max;
-        document.getElementById('valOverflow').innerText = (vaultData.overflowPool || 0).toFixed(3);
-        document.getElementById('valTotalDistributed').innerText = (vaultData.totalDistributed || 0).toFixed(3);
+    // Auth Handlers
+    document.getElementById('btnLogin').onclick = () => {
+        signInWithEmailAndPassword(auth, document.getElementById('email').value, document.getElementById('password').value)
+            .catch(err => document.getElementById('auth-error').innerText = "ACCESS_DENIED");
+    };
+    document.getElementById('btnLogout').onclick = () => signOut(auth);
 
+    onAuthStateChanged(auth, user => {
+        document.getElementById('auth-gate').style.display = user ? 'none' : 'flex';
+        document.getElementById('dashboard').style.display = user ? 'grid' : 'none';
+        if(user) startSync();
+    });
+
+    function startSync() {
+        onValue(ref(db, 'vault/stats'), snap => {
+            currentActiveRound = snap.val().currentRound || 1;
+            document.getElementById('simActiveRound').innerText = currentActiveRound;
+            get(ref(db, 'vault/season_v2')).then(s => refreshUI(s.val()));
+        });
+        onValue(ref(db, 'vault/season_v2'), snap => refreshUI(snap.val()));
+    }
+
+    function refreshUI(data) {
+        if(!data) return;
+        document.getElementById('lblMin').innerText = data.config?.min;
+        document.getElementById('lblMax').innerText = data.config?.max;
+        document.getElementById('valOverflow').innerText = (data.overflowPool || 0).toFixed(3);
+        document.getElementById('valTotalDistributed').innerText = (data.totalDistributed || 0).toFixed(3);
+        
         for(let i=1; i<=12; i++) {
-            const r = vaultData[`round${i}`] || { n: 0, b: 0 };
+            const r = data[`round${i}`] || {n:0, b:0};
             document.getElementById(`rN${i}`).innerText = r.n.toFixed(3);
             document.getElementById(`rB${i}`).innerText = r.b.toFixed(3);
             document.getElementById(`rT${i}`).innerText = (r.n + r.b).toFixed(3);
-            
             const card = document.getElementById(`bCard${i}`);
-            const label = document.getElementById(`statusLabel${i}`);
-
-            if (i < currentActiveRound) {
-                card.className = "bucket past";
-                label.innerText = `RND_${String(i).padStart(2,'0')} [DONE]`;
-            } else if (i === currentActiveRound) {
-                card.className = "bucket active";
-                label.innerText = `RND_${String(i).padStart(2,'0')} [LIVE]`;
-            } else {
-                card.className = "bucket";
-                label.innerText = `RND_${String(i).padStart(2,'0')} [WAIT]`;
-            }
+            card.className = i < currentActiveRound ? "bucket past" : (i === currentActiveRound ? "bucket active" : "bucket");
         }
     }
 
-    // LISTENER 1: Monitor Stats for Round Number
-    onValue(ref(db, 'vault/stats'), async (snap) => {
-        const stats = snap.val() || {};
-        currentActiveRound = stats.currentRound || 1;
-        document.getElementById('simActiveRound').innerText = currentActiveRound;
-        
-        // Fetch vault data immediately to sync styles
-        const vSnap = await get(ref(db, 'vault/season_v2'));
-        refreshUI(vSnap.val());
-    });
-
-    // LISTENER 2: Monitor Vault for Money Changes
-    onValue(ref(db, 'vault/season_v2'), (snap) => {
-        refreshUI(snap.val());
-    });
-
-    async function reallocate(targetData) {
-        const config = targetData.config || { min: 0.5, max: 2.0 };
-        let remN = targetData.normalPool || 0;
-        let remB = targetData.boostPool || 0;
-
+    async function reallocate(target) {
+        const cfg = target.config;
+        let remN = target.normalPool;
+        let remB = target.boostPool;
         let eligible = [];
-        for (let i = currentActiveRound; i <= 12; i++) {
-            eligible.push(i);
-            targetData[`round${i}`] = { n: 0, b: 0 };
+        for(let i=currentActiveRound; i<=12; i++) { eligible.push(i); target[`round${i}`] = {n:0, b:0}; }
+        
+        if(!eligible.length) { 
+            target.overflowPool = Number(((target.overflowPool || 0) + remN).toFixed(4));
+            await set(ref(db, 'vault/season_v2'), target); return; 
         }
 
-        if (eligible.length === 0) {
-            targetData.overflowPool = Number(((targetData.overflowPool || 0) + remN).toFixed(4));
-            targetData.normalPool = 0;
-            await set(ref(db, 'vault/season_v2'), targetData);
-            return;
+        for(let i of eligible) { if(remN > 0) { let a = Math.min(remN, cfg.min); target[`round${i}`].n = a; remN -= a; } }
+        if(remN > 0) {
+            let add = Math.min(remN, (cfg.max - cfg.min) * eligible.length);
+            let per = add / eligible.length;
+            for(let i of eligible) target[`round${i}`].n = Number((target[`round${i}`].n + per).toFixed(4));
+            remN -= add;
         }
-
-        for (let i of eligible) {
-            if (remN > 0) {
-                let add = Math.min(remN, config.min);
-                targetData[`round${i}`].n = Number(add.toFixed(4));
-                remN -= add;
-            }
+        target.overflowPool = Number(((target.overflowPool || 0) + remN).toFixed(4));
+        target.normalPool = 0;
+        if(remB > 0) {
+            let s = remB / eligible.length;
+            for(let i of eligible) target[`round${i}`].b = Number(s.toFixed(4));
+            target.boostPool = 0;
         }
-        if (remN > 0) {
-            let spacePer = config.max - config.min;
-            let totalSpace = spacePer * eligible.length;
-            let addTotal = Math.min(remN, totalSpace);
-            let perRound = addTotal / eligible.length;
-            for (let i of eligible) {
-                targetData[`round${i}`].n = Number((targetData[`round${i}`].n + perRound).toFixed(4));
-            }
-            remN -= addTotal;
-        }
-        targetData.overflowPool = Number(((targetData.overflowPool || 0) + remN).toFixed(4));
-        targetData.normalPool = 0;
-        if (remB > 0) {
-            let split = remB / eligible.length;
-            for (let i of eligible) targetData[`round${i}`].b = Number(split.toFixed(4));
-            targetData.boostPool = 0;
-        }
-        await set(ref(db, 'vault/season_v2'), targetData);
+        await set(ref(db, 'vault/season_v2'), target);
     }
 
     document.getElementById('btnSponsor').onclick = async () => {
         const amt = parseFloat(document.getElementById('sponsorAmt').value);
-        if(!amt || amt <= 0) return;
-        const mode = document.getElementById('modeSelect').value;
+        if(!amt) return;
         const snap = await get(ref(db, 'vault/season_v2'));
-        const data = snap.val() || {};
-        
-        let totalN = (data.normalPool || 0) + (mode === 'normal' ? amt : 0) + (data.overflowPool || 0);
-        let totalB = (data.boostPool || 0) + (mode === 'boost' ? amt : 0);
+        const data = snap.val();
+        const mode = document.getElementById('modeSelect').value;
+        let tN = (data.normalPool || 0) + (mode === 'normal' ? amt : 0) + (data.overflowPool || 0);
+        let tB = (data.boostPool || 0) + (mode === 'boost' ? amt : 0);
         data.overflowPool = 0;
-
-        for(let i = currentActiveRound; i <= 12; i++) {
-            const r = data[`round${i}`] || { n: 0, b: 0 };
-            totalN += r.n; totalB += r.b;
-        }
-        data.normalPool = totalN; data.boostPool = totalB;
+        for(let i=currentActiveRound; i<=12; i++) { tN += data[`round${i}`].n; tB += data[`round${i}`].b; }
+        data.normalPool = tN; data.boostPool = tB;
         await reallocate(data);
         document.getElementById('sponsorAmt').value = "";
     };
 
     document.getElementById('btnInstantResolve').onclick = async () => {
-        const statsSnap = await get(ref(db, 'vault/stats'));
-        const seasonSnap = await get(ref(db, 'vault/season_v2'));
-        const regSnap = await get(ref(db, 'registrations'));
-
-        const curR = statsSnap.val().currentRound || 1;
-        const bucket = seasonSnap.val()[`round${curR}`] || {n:0, b:0};
-        const prize = bucket.n + bucket.b;
-
-        const players = regSnap.val() || {};
-        const entrants = Object.keys(players).filter(a => players[a].lastPaidRound === curR);
-        let winner = entrants.length > 0 ? entrants[Math.floor(Math.random()*entrants.length)] : "none";
-
-        const newTotalDist = (seasonSnap.val().totalDistributed || 0) + prize;
-        
-        // Drain bucket
-        await update(ref(db, 'vault/season_v2'), {
-            [`round${curR}`]: { n: 0, b: 0 },
-            totalDistributed: Number(newTotalDist.toFixed(4))
-        });
-
+        const sSnap = await get(ref(db, 'vault/stats'));
+        const vSnap = await get(ref(db, 'vault/season_v2'));
+        const curR = sSnap.val().currentRound;
+        const prize = vSnap.val()[`round${curR}`].n + vSnap.val()[`round${curR}`].b;
         const nextR = curR >= 12 ? 1 : curR + 1;
-        
-        await update(ref(db, 'vault/stats'), {
-            prizeAmount: Number(prize.toFixed(4)),
-            winner: winner,
-            currentRound: nextR,
-            carCount: 0
-        });
+
+        await update(ref(db, 'vault/season_v2'), { [`round${curR}`]: {n:0, b:0}, totalDistributed: Number((vSnap.val().totalDistributed + prize).toFixed(4)) });
+        await update(ref(db, 'vault/stats'), { currentRound: nextR, prizeAmount: prize });
 
         if(nextR === 1) {
-            document.getElementById('sim-status').innerText = "// SEASON RESTARTING... //";
-            const freshSnap = await get(ref(db, 'vault/season_v2'));
-            const freshData = freshSnap.val();
-            freshData.normalPool = freshData.overflowPool || 0;
-            freshData.overflowPool = 0;
-            currentActiveRound = 1; 
-            await reallocate(freshData);
-        } else {
-            document.getElementById('sim-status').innerText = `// R${curR} PAID OUT //`;
+            const fresh = (await get(ref(db, 'vault/season_v2'))).val();
+            fresh.normalPool = fresh.overflowPool; fresh.overflowPool = 0;
+            currentActiveRound = 1;
+            await reallocate(fresh);
         }
-    };
-
-    document.getElementById('btnReset').onclick = async () => {
-        const snap = await get(ref(db, 'vault/season_v2'));
-        const data = snap.val() || {};
-        let totalN = (data.normalPool || 0) + (data.overflowPool || 0);
-        let totalB = (data.boostPool || 0);
-        data.overflowPool = 0;
-        for(let i = currentActiveRound; i <= 12; i++) {
-            const r = data[`round${i}`] || { n: 0, b: 0 };
-            totalN += r.n; totalB += r.b;
-        }
-        data.normalPool = totalN; data.boostPool = totalB;
-        await reallocate(data);
     };
 
     document.getElementById('btnZero').onclick = async () => {
-        if(!confirm("HARD WIPE EVERYTHING?")) return;
+        if(!confirm("HARD WIPE?")) return;
         const fresh = { config:{min:0.5, max:2.0}, normalPool:0, boostPool:0, overflowPool:0, totalDistributed:0 };
         for(let i=1; i<=12; i++) fresh[`round${i}`] = {n:0, b:0};
         await set(ref(db, 'vault/season_v2'), fresh);
-        await update(ref(db, 'vault/stats'), { currentRound: 1, prizeAmount: 0, winner: "none", carCount: 0 });
+        await update(ref(db, 'vault/stats'), { currentRound: 1 });
     };
 
     document.getElementById('btnSetMin').onclick = () => update(ref(db, 'vault/season_v2/config'), { min: parseFloat(document.getElementById('setMin').value) });

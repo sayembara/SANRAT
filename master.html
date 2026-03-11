@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <title>MASTER_PILOT_V3</title>
+    <title>MASTER_PILOT_CONTROL_V3</title>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/ethers/5.7.2/ethers.umd.min.js"></script>
     <style>
         body { background: #000; color: #e74c3c; font-family: 'Courier New', monospace; display: flex; justify-content: center; padding: 20px; }
@@ -11,38 +11,42 @@
         .live-val { color: #fff; font-weight: bold; float: right; }
         input { width: 94%; padding: 10px; margin: 5px 0; background: #111; border: 1px solid #e74c3c; color: #fff; border-radius: 4px; }
         button { width: 100%; padding: 12px; margin: 5px 0; background: #e74c3c; color: #fff; border: none; font-weight: bold; cursor: pointer; text-transform: uppercase; border-radius: 4px; }
-        #playerList { list-style: none; padding: 0; margin-top: 10px; font-size: 0.75em; color: #aaa; max-height: 100px; overflow-y: auto; border: 1px solid #222; padding: 5px; }
+        button:disabled { opacity: 0.5; cursor: not-allowed; }
+        #playerList { list-style: none; padding: 0; margin-top: 10px; font-size: 0.75em; color: #aaa; max-height: 120px; overflow-y: auto; border: 1px solid #222; padding: 5px; }
         .player-entry { padding: 4px; border-bottom: 1px solid #222; display: flex; justify-content: space-between; }
+        #auth-status { text-align: center; font-size: 0.7em; margin-bottom: 10px; color: #888; }
     </style>
 </head>
 <body>
 
 <div class="terminal">
-    <h2 style="text-align:center; letter-spacing: 5px;">MASTER_DASHBOARD</h2>
+    <h2 style="text-align:center; letter-spacing: 5px; margin-bottom: 5px;">MASTER_V3</h2>
+    <div id="auth-status">// STATUS: OFFLINE //</div>
+    
     <button id="connectMasterBtn">AUTHENTICATE MASTER</button>
 
     <div id="controls" style="display:none;">
-        <div class="stat-box">HOUSE_FUNDS <span class="live-val" id="houseFunds">0</span></div>
-        <div class="stat-box">SET_PRIZE <span class="live-val" id="currentPrize">0</span></div>
+        <div class="stat-box">HOUSE_FUNDS <span class="live-val" id="houseFunds">0 tBNB</span></div>
+        <div class="stat-box">SET_PRIZE <span class="live-val" id="currentPrize">0 tBNB</span></div>
         <div class="stat-box">MIN_CARS_REQ <span class="live-val" id="minCars">0</span></div>
         <div class="stat-box" style="border-color: #2ecc71;">LOBBY_COUNT <span class="live-val" id="carCount">0</span></div>
         
-        <div style="font-size: 0.7em; color: #e74c3c; margin-top: 15px;">// CURRENT_LOBBY_PLAYERS //</div>
+        <div style="font-size: 0.7em; color: #e74c3c; margin-top: 15px;">// CURRENT_ROUND_LOBBY //</div>
         <ul id="playerList"><li>Waiting for entries...</li></ul>
 
         <hr style="border: 0.5px dashed #333; margin: 20px 0;">
 
-        <input type="number" id="depositAmt" placeholder="Add tBNB to House">
+        <input type="number" step="0.01" id="depositAmt" placeholder="Add tBNB to House">
         <button id="addFundsBtn">DEPOSIT TO HOUSE</button>
 
-        <input type="number" id="prizeInp" placeholder="New Prize Amount">
+        <input type="number" step="0.01" id="prizeInp" placeholder="New Prize Amount">
         <button id="setPrizeBtn">SET PRIZE AMOUNT</button>
 
         <input type="number" id="minInp" placeholder="New Min Cars">
         <button id="setMinCarsBtn">SET MIN CARS</button>
 
         <button id="pickWinnerBtn" style="background:#f3ba2f; color:#000">RANDOMIZE WINNER</button>
-        <div id="winnerDisplay" style="text-align:center; margin: 10px; font-weight: bold; color: #fff;"></div>
+        <div id="winnerDisplay" style="text-align:center; margin: 10px; font-weight: bold; color: #fff; font-size: 0.8em;"></div>
         
         <button id="startBtn" style="background:#2ecc71; color:#000">RESET FOR NEXT ROUND</button>
     </div>
@@ -52,80 +56,111 @@
     import { initializeApp } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js";
     import { getFirestore, doc, updateDoc, onSnapshot, getDoc, collection, query, where, getDocs } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
 
-    // --- PASTE YOUR FIREBASE CONFIG ---
-    const firebaseConfig = { ... };
+    // --- PASTE YOUR FIREBASE CONFIG HERE ---
+    const firebaseConfig = {
+        apiKey: "YOUR_API_KEY",
+        authDomain: "YOUR_PROJECT.firebaseapp.com",
+        projectId: "YOUR_PROJECT_ID",
+        storageBucket: "YOUR_PROJECT.appspot.com",
+        messagingSenderId: "YOUR_SENDER_ID",
+        appId: "YOUR_APP_ID"
+    };
 
     const app = initializeApp(firebaseConfig);
     const db = getFirestore(app);
+
+    // EXACT WALLET (Ensure no spaces)
     const MASTER_WALLET = "0xce9782f77ec560a1cb329f935b5d416aa41f1a5d".toLowerCase();
     const statsRef = doc(db, "vault", "stats");
 
     let currentRoundID = 1;
 
-document.getElementById('connectMasterBtn').onclick = async () => {
-    console.log("Master Auth Button Clicked..."); // Check if this shows in F12
-    
-    try {
-        if (!window.ethereum) {
-            alert("MetaMask not found!");
-            return;
-        }
-
-        const accounts = await window.ethereum.request({ method: 'eth_requestAccounts' });
-        const user = accounts[0].toLowerCase();
-        console.log("Connected as:", user);
-
-        if (user === MASTER_WALLET) {
-            console.log("Wallet Match! Opening Controls...");
-            document.getElementById('controls').style.display = "block";
-            document.getElementById('connectMasterBtn').style.display = "none";
-            startListeners(); // Make sure this function exists!
-        } else {
-            alert("UNAUTHORIZED: " + user + " is not the Master.");
-        }
-    } catch (err) {
-        console.error("Auth Error:", err);
-        alert("Connection Error: " + err.message);
-    }
-};
-
-    function startListeners() {
-        // 1. Listen for Stats
-        onSnapshot(statsRef, (d) => {
-            const s = d.data();
-            currentRoundID = s.currentRound || 1;
-            document.getElementById('houseFunds').innerText = s.totalFunds + " tBNB";
-            document.getElementById('currentPrize').innerText = s.prizeAmount + " tBNB";
-            document.getElementById('carCount').innerText = s.carCount;
-            document.getElementById('minCars').innerText = s.minCars;
-            document.getElementById('winnerDisplay').innerText = s.winner === "none" ? "" : "WINNER: " + s.winner;
+    // --- BUTTON: CONNECT & AUTH ---
+    document.getElementById('connectMasterBtn').onclick = async () => {
+        console.log("Auth button triggered...");
+        try {
+            if (!window.ethereum) return alert("Install MetaMask!");
             
-            updatePlayerUI();
+            const accounts = await window.ethereum.request({ method: 'eth_requestAccounts' });
+            const connectedUser = accounts[0].toLowerCase();
+            
+            console.log("Connected Wallet:", connectedUser);
+            console.log("Target Wallet:", MASTER_WALLET);
+
+            if (connectedUser === MASTER_WALLET) {
+                document.getElementById('controls').style.display = "block";
+                document.getElementById('connectMasterBtn').style.display = "none";
+                document.getElementById('auth-status').innerText = "// ACCESS_GRANTED //";
+                document.getElementById('auth-status').style.color = "#2ecc71";
+                startListeners();
+            } else {
+                alert("UNAUTHORIZED WALLET. Check Console (F12) to see your address.");
+            }
+        } catch (err) {
+            console.error("Auth Error:", err);
+        }
+    };
+
+    // --- DATA LISTENERS ---
+    function startListeners() {
+        onSnapshot(statsRef, (snapshot) => {
+            if (!snapshot.exists()) return;
+            const data = snapshot.data();
+            currentRoundID = data.currentRound || 1;
+
+            document.getElementById('houseFunds').innerText = data.totalFunds + " tBNB";
+            document.getElementById('currentPrize').innerText = data.prizeAmount + " tBNB";
+            document.getElementById('carCount').innerText = data.carCount;
+            document.getElementById('minCars').innerText = data.minCars;
+            
+            if (data.winner && data.winner !== "none") {
+                document.getElementById('winnerDisplay').innerText = "WINNER: " + data.winner.substring(0,15) + "...";
+            } else {
+                document.getElementById('winnerDisplay').innerText = "AWAITING RACE RESULTS";
+            }
+            
+            updatePlayerListUI();
         });
     }
 
-    async function updatePlayerUI() {
-        const q = query(collection(db, "registrations"), where("lastPaidRound", "==", currentRoundID));
-        const snap = await getDocs(q);
-        const list = document.getElementById('playerList');
-        list.innerHTML = "";
-        snap.forEach(doc => {
-            list.innerHTML += `<li class="player-entry"><span>${doc.id.substring(0,15)}...</span><span style="color:#2ecc71">READY</span></li>`;
-        });
+    async function updatePlayerListUI() {
+        try {
+            const q = query(collection(db, "registrations"), where("lastPaidRound", "==", currentRoundID));
+            const snap = await getDocs(q);
+            const listElement = document.getElementById('playerList');
+            listElement.innerHTML = "";
+            
+            if (snap.empty) {
+                listElement.innerHTML = "<li>Lobby is empty...</li>";
+                return;
+            }
+
+            snap.forEach(playerDoc => {
+                listElement.innerHTML += `
+                    <li class="player-entry">
+                        <span>${playerDoc.id.substring(0,18)}...</span>
+                        <span style="color:#2ecc71">READY</span>
+                    </li>`;
+            });
+        } catch (e) { console.error("List Update Error:", e); }
     }
 
-    // BUTTON LOGIC
+    // --- FUNCTION BUTTONS ---
     document.getElementById('addFundsBtn').onclick = async () => {
         const val = parseFloat(document.getElementById('depositAmt').value);
+        if (isNaN(val)) return;
         const snap = await getDoc(statsRef);
-        await updateDoc(statsRef, { totalFunds: Number((snap.data().totalFunds + val).toFixed(4)) });
+        const newTotal = (snap.data().totalFunds || 0) + val;
+        await updateDoc(statsRef, { totalFunds: Number(newTotal.toFixed(4)) });
         document.getElementById('depositAmt').value = "";
     };
 
     document.getElementById('setPrizeBtn').onclick = async () => {
         const val = parseFloat(document.getElementById('prizeInp').value);
+        if (isNaN(val)) return;
         const snap = await getDoc(statsRef);
-        if (snap.data().totalFunds < val) return alert("Insufficient House Funds");
+        if (snap.data().totalFunds < val) return alert("Not enough House Funds!");
+        
         await updateDoc(statsRef, { 
             prizeAmount: val, 
             totalFunds: Number((snap.data().totalFunds - val).toFixed(4)) 
@@ -135,6 +170,7 @@ document.getElementById('connectMasterBtn').onclick = async () => {
 
     document.getElementById('setMinCarsBtn').onclick = async () => {
         const val = parseInt(document.getElementById('minInp').value);
+        if (isNaN(val)) return;
         await updateDoc(statsRef, { minCars: val });
         document.getElementById('minInp').value = "";
     };
@@ -142,21 +178,28 @@ document.getElementById('connectMasterBtn').onclick = async () => {
     document.getElementById('pickWinnerBtn').onclick = async () => {
         const q = query(collection(db, "registrations"), where("lastPaidRound", "==", currentRoundID));
         const snap = await getDocs(q);
-        let players = [];
-        snap.forEach(doc => players.push(doc.id));
+        let playersPool = [];
+        snap.forEach(p => playersPool.push(p.id));
 
-        if (players.length === 0) return alert("Lobby is empty!");
+        if (playersPool.length === 0) return alert("No players in this round!");
 
-        const winner = players[Math.floor(Math.random() * players.length)];
-        await updateDoc(statsRef, { winner: winner });
+        const winner = playersPool[Math.floor(Math.random() * playersPool.length)];
+        await updateDoc(statsRef, { winner: winner.toLowerCase() });
+        alert("Winner Selected: " + winner);
     };
 
     document.getElementById('startBtn').onclick = async () => {
+        if (!confirm("Start New Round? This clears the current lobby.")) return;
         const snap = await getDoc(statsRef);
         const nextRound = (snap.data().currentRound || 1) + 1;
-        await updateDoc(statsRef, { winner: "none", carCount: 0, currentRound: nextRound });
-        alert("Round " + nextRound + " started!");
+        await updateDoc(statsRef, { 
+            winner: "none", 
+            carCount: 0, 
+            currentRound: nextRound 
+        });
+        alert("Round " + nextRound + " is now LIVE.");
     };
+
 </script>
 </body>
 </html>

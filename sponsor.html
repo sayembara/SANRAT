@@ -3,28 +3,30 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>NUCLEAR_F1_CONTROL_v4.1</title>
+    <title>NUCLEAR_F1_WEB3_CONTROL</title>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/ethers/5.7.2/ethers.umd.min.js"></script>
     <style>
-        :root { --accent: #f3ba2f; --bg: #000; --panel: #0a0a0a; --border: #222; --boost: #3498db; --danger: #e74c3c; --success: #2ecc71; --disabled: #1a1a1a; }
+        :root { --accent: #f3ba2f; --bg: #000; --panel: #0a0a0a; --border: #222; --boost: #3498db; --danger: #e74c3c; --success: #2ecc71; }
         body { background: var(--bg); color: #fff; font-family: 'Courier New', monospace; margin: 0; padding: 20px; display: flex; justify-content: center; }
         
-        #auth-gate { position: fixed; inset: 0; background: #000; z-index: 9999; display: flex; align-items: center; justify-content: center; }
-        .auth-box { background: var(--panel); border: 1px solid var(--accent); padding: 40px; width: 320px; text-align: center; }
+        /* WEB3 AUTH GATE */
+        #auth-gate { position: fixed; inset: 0; background: #000; z-index: 9999; display: flex; align-items: center; justify-content: center; flex-direction: column; }
+        .auth-box { background: var(--panel); border: 1px solid var(--accent); padding: 40px; width: 350px; text-align: center; box-shadow: 0 0 30px rgba(243, 186, 47, 0.1); }
         
         #dashboard { display: none; width: 100%; max-width: 1100px; grid-template-columns: 1fr 340px; gap: 20px; }
-        .panel { background: var(--panel); border: 1px solid var(--border); padding: 20px; border-radius: 4px; margin-bottom: 20px; position: relative; }
+        .panel { background: var(--panel); border: 1px solid var(--border); padding: 20px; border-radius: 4px; margin-bottom: 20px; }
         h3 { color: var(--accent); margin-top: 0; font-size: 0.9em; letter-spacing: 2px; border-bottom: 1px solid var(--border); padding-bottom: 10px; margin-bottom: 15px; }
         
         .buckets-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; }
-        .bucket { background: #080808; border: 1px solid #1a1a1a; padding: 10px; font-size: 0.8em; border-left: 3px solid #333; transition: 0.3s ease; }
-        .bucket.past { opacity: 0.35; filter: grayscale(1); border-left-color: #444; }
-        .bucket.active { border-color: var(--boost); background: #0f172a; box-shadow: 0 0 15px rgba(52, 152, 219, 0.2); border-left-color: var(--boost); transform: translateY(-2px); }
+        .bucket { background: #080808; border: 1px solid #1a1a1a; padding: 10px; font-size: 0.8em; border-left: 3px solid #333; }
+        .bucket.past { opacity: 0.3; filter: grayscale(1); }
+        .bucket.active { border-color: var(--boost); background: #0f172a; border-left-color: var(--boost); }
         
         .val-line { display: flex; justify-content: space-between; margin: 2px 0; }
         input, select { width: 100%; padding: 12px; background: #000; border: 1px solid #333; color: #fff; margin-bottom: 10px; font-family: inherit; }
-        button { width: 100%; padding: 14px; border: none; font-weight: bold; cursor: pointer; text-transform: uppercase; font-family: inherit; font-size: 0.7em; }
+        button { width: 100%; padding: 14px; border: none; font-weight: bold; cursor: pointer; text-transform: uppercase; font-family: inherit; font-size: 0.75em; transition: 0.2s; }
         .btn-acc { background: var(--accent); color: #000; }
+        .btn-acc:hover { background: #fff; }
         .btn-boost { background: var(--boost); color: #fff; }
         .btn-danger { background: var(--danger); color: #fff; }
         .btn-ghost { background: transparent; border: 1px solid #444; color: #888; }
@@ -34,30 +36,30 @@
 
 <div id="auth-gate">
     <div class="auth-box">
-        <h3 style="border:none;">SYSTEM_LOCK</h3>
-        <input type="email" id="email" placeholder="ADMIN_EMAIL">
-        <input type="password" id="password" placeholder="SECRET_KEY">
-        <button class="btn-acc" id="btnLogin">AUTHORIZE</button>
-        <p id="auth-error" style="color:var(--danger); font-size:0.7em; margin-top:10px;"></p>
+        <h2 style="color:var(--accent); font-size: 1.2em; margin-bottom: 10px;">VAULT_LOCKED</h2>
+        <p style="font-size: 0.7em; color: #666; margin-bottom: 30px;">REQUIRES MASTER WALLET SIGNATURE</p>
+        <button class="btn-acc" id="btnConnect">CONNECT & VERIFY</button>
+        <p id="auth-error" style="color:var(--danger); font-size: 0.7em; margin-top: 15px;"></p>
     </div>
 </div>
 
 <div id="dashboard">
     <div class="main-col">
         <div class="panel">
-            <h3>SEASON_VAULT_SENSORS <span id="sync-light" style="float:right; color:var(--success); font-size:0.7em;">● LIVE</span></h3>
+            <h3>SEASON_VAULT_SENSORS <span style="float:right; color:var(--success); font-size:0.7em;">● SECURE_SESSION</span></h3>
             <div class="buckets-grid" id="bucketDisplay"></div>
             <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-top: 15px;">
                 <div style="background:#111; padding:15px; border:1px solid #222; text-align:center;">
-                    <small style="color:#666;">OVERFLOW_POOL</small><br>
+                    <small style="color:#666;">OVERFLOW</small><br>
                     <span id="valOverflow" style="color:var(--success); font-weight:bold;">0.000</span>
                 </div>
                 <div style="background:#111; padding:15px; border:1px solid #222; text-align:center;">
-                    <small style="color:#666;">SEASON_TOTAL_PAID</small><br>
+                    <small style="color:#666;">TOTAL_DISTRIBUTED</small><br>
                     <span id="valTotalDistributed" style="color:var(--boost); font-weight:bold;">0.000</span>
                 </div>
             </div>
         </div>
+
         <div class="panel">
             <h3>GLOBAL_CONSTRAINTS</h3>
             <div style="display:grid; grid-template-columns:1fr 1fr; gap:15px;">
@@ -69,33 +71,31 @@
 
     <div class="side-col">
         <div class="panel">
-            <h3>INJECT_FUNDS</h3>
+            <h3>FUNDING_OPS</h3>
             <select id="modeSelect">
-                <option value="normal">NORMAL (FILL BUCKETS)</option>
-                <option value="boost">BOOST (FIXED SPLIT)</option>
+                <option value="normal">NORMAL_POOL (REFILL)</option>
+                <option value="boost">BOOST_POOL (FIXED)</option>
             </select>
             <input type="number" id="sponsorAmt" placeholder="0.00 tBNB">
-            <button class="btn-acc" id="btnSponsor">CONFIRM_DEPOSIT</button>
+            <button class="btn-acc" id="btnSponsor">EXECUTE_INJECTION</button>
         </div>
+
         <div class="panel" style="border-color:var(--boost);">
             <h3>RACE_CONTROL</h3>
             <div class="val-line"><span>ACTIVE_ROUND:</span><span id="simActiveRound" style="color:var(--boost); font-weight:bold;">-</span></div>
-            <button class="btn-boost" id="btnInstantResolve" style="margin-top:10px;">END RACE & PAYOUT</button>
-            <div id="sim-status" style="font-size:0.6em; color:var(--boost); text-align:center; margin-top:5px;">READY</div>
+            <button class="btn-boost" id="btnInstantResolve" style="margin-top:10px;">PAYOUT & NEXT_ROUND</button>
         </div>
+
         <div class="panel">
-            <button class="btn-danger" id="btnReset">REALLOCATE_CURRENT</button>
-            <button class="btn-ghost" id="btnZero" style="margin-top:5px;">HARD_RESET_SEASON</button>
-            <button id="btnLogout" class="btn-ghost" style="margin-top:20px; border:none; font-size:0.6em;">DISCONNECT</button>
+            <button class="btn-danger" id="btnReset">REALLOCATE_FUNDS</button>
+            <button class="btn-ghost" id="btnZero" style="margin-top:5px;">HARD_RESET</button>
         </div>
     </div>
 </div>
 
-
-
 <script type="module">
     import { initializeApp } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js";
-    import { getAuth, signInWithEmailAndPassword, onAuthStateChanged, signOut } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-auth.js";
+    import { getAuth, signInAnonymously } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-auth.js";
     import { getDatabase, ref, onValue, get, update, set } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-database.js";
 
     const firebaseConfig = {
@@ -108,48 +108,68 @@
         appId: "YOUR_APP_ID"
     };
 
+    // --- CONFIGURATION ---
+    const MASTER_ADMIN_WALLET = "0xYourWalletAddressHere".toLowerCase(); 
+    
     const app = initializeApp(firebaseConfig);
     const auth = getAuth(app);
     const db = getDatabase(app);
     let currentActiveRound = 1;
 
-    // Build UI
+    // Initialize UI Grid
     const grid = document.getElementById('bucketDisplay');
     for(let i=1; i<=12; i++) {
         grid.innerHTML += `<div class="bucket" id="bCard${i}">
-            <div id="statusLabel${i}" style="color:#555; font-size:0.65em; margin-bottom:5px;">RND_${i}</div>
-            <div class="val-line">N: <span id="rN${i}" class="n-text">0.0</span></div>
-            <div class="val-line">B: <span id="rB${i}" class="b-text">0.0</span></div>
-            <div class="val-line" style="border-top:1px solid #222; margin-top:5px; font-weight:bold;">Σ <span id="rT${i}">0.0</span></div>
+            <div style="color:#555; font-size:0.6em; margin-bottom:4px;">ROUND_${i}</div>
+            <div class="val-line">N: <span id="rN${i}" style="color:var(--accent)">0.0</span></div>
+            <div class="val-line">B: <span id="rB${i}" style="color:var(--boost)">0.0</span></div>
+            <div class="val-line" style="border-top:1px solid #222; margin-top:4px;">Σ <span id="rT${i}">0.0</span></div>
         </div>`;
     }
 
-    // Auth Handlers
-    document.getElementById('btnLogin').onclick = () => {
-        signInWithEmailAndPassword(auth, document.getElementById('email').value, document.getElementById('password').value)
-            .catch(err => document.getElementById('auth-error').innerText = "ACCESS_DENIED");
-    };
-    document.getElementById('btnLogout').onclick = () => signOut(auth);
+    // --- WEB3 AUTHENTICATION ---
+    document.getElementById('btnConnect').onclick = async () => {
+        if(!window.ethereum) return alert("Install MetaMask");
+        
+        try {
+            const provider = new ethers.providers.Web3Provider(window.ethereum);
+            await provider.send("eth_requestAccounts", []);
+            const signer = provider.getSigner();
+            const address = (await signer.getAddress()).toLowerCase();
 
-    onAuthStateChanged(auth, user => {
-        document.getElementById('auth-gate').style.display = user ? 'none' : 'flex';
-        document.getElementById('dashboard').style.display = user ? 'grid' : 'none';
-        if(user) startSync();
-    });
+            if(address !== MASTER_ADMIN_WALLET) {
+                document.getElementById('auth-error').innerText = "ERROR: UNAUTHORIZED_WALLET";
+                return;
+            }
+
+            // Proof of Ownership Signature
+            const message = "NUCLEAR_F1_ADMIN_LOGIN_" + new Date().toDateString();
+            await signer.signMessage(message);
+
+            // Once signed, we sign in anonymously to Firebase to satisfy "auth != null"
+            await signInAnonymously(auth);
+            
+            document.getElementById('auth-gate').style.display = 'none';
+            document.getElementById('dashboard').style.display = 'grid';
+            startSync();
+
+        } catch (err) {
+            document.getElementById('auth-error').innerText = "SIGNATURE_REJECTED";
+        }
+    };
 
     function startSync() {
         onValue(ref(db, 'vault/stats'), snap => {
             currentActiveRound = snap.val().currentRound || 1;
             document.getElementById('simActiveRound').innerText = currentActiveRound;
-            get(ref(db, 'vault/season_v2')).then(s => refreshUI(s.val()));
         });
         onValue(ref(db, 'vault/season_v2'), snap => refreshUI(snap.val()));
     }
 
     function refreshUI(data) {
         if(!data) return;
-        document.getElementById('lblMin').innerText = data.config?.min;
-        document.getElementById('lblMax').innerText = data.config?.max;
+        document.getElementById('lblMin').innerText = data.config.min;
+        document.getElementById('lblMax').innerText = data.config.max;
         document.getElementById('valOverflow').innerText = (data.overflowPool || 0).toFixed(3);
         document.getElementById('valTotalDistributed').innerText = (data.totalDistributed || 0).toFixed(3);
         
@@ -158,11 +178,11 @@
             document.getElementById(`rN${i}`).innerText = r.n.toFixed(3);
             document.getElementById(`rB${i}`).innerText = r.b.toFixed(3);
             document.getElementById(`rT${i}`).innerText = (r.n + r.b).toFixed(3);
-            const card = document.getElementById(`bCard${i}`);
-            card.className = i < currentActiveRound ? "bucket past" : (i === currentActiveRound ? "bucket active" : "bucket");
+            document.getElementById(`bCard${i}`).className = i < currentActiveRound ? "bucket past" : (i === currentActiveRound ? "bucket active" : "bucket");
         }
     }
 
+    // --- CORE LOGIC ---
     async function reallocate(target) {
         const cfg = target.config;
         let remN = target.normalPool;
@@ -170,25 +190,23 @@
         let eligible = [];
         for(let i=currentActiveRound; i<=12; i++) { eligible.push(i); target[`round${i}`] = {n:0, b:0}; }
         
-        if(!eligible.length) { 
-            target.overflowPool = Number(((target.overflowPool || 0) + remN).toFixed(4));
-            await set(ref(db, 'vault/season_v2'), target); return; 
-        }
-
-        for(let i of eligible) { if(remN > 0) { let a = Math.min(remN, cfg.min); target[`round${i}`].n = a; remN -= a; } }
-        if(remN > 0) {
-            let add = Math.min(remN, (cfg.max - cfg.min) * eligible.length);
-            let per = add / eligible.length;
-            for(let i of eligible) target[`round${i}`].n = Number((target[`round${i}`].n + per).toFixed(4));
-            remN -= add;
+        if(eligible.length > 0) {
+            for(let i of eligible) { if(remN > 0) { let a = Math.min(remN, cfg.min); target[`round${i}`].n = a; remN -= a; } }
+            if(remN > 0) {
+                let add = Math.min(remN, (cfg.max - cfg.min) * eligible.length);
+                let per = add / eligible.length;
+                for(let i of eligible) target[`round${i}`].n = Number((target[`round${i}`].n + per).toFixed(4));
+                remN -= add;
+            }
+            if(remB > 0) {
+                let s = remB / eligible.length;
+                for(let i of eligible) target[`round${i}`].b = Number(s.toFixed(4));
+                remB = 0;
+            }
         }
         target.overflowPool = Number(((target.overflowPool || 0) + remN).toFixed(4));
         target.normalPool = 0;
-        if(remB > 0) {
-            let s = remB / eligible.length;
-            for(let i of eligible) target[`round${i}`].b = Number(s.toFixed(4));
-            target.boostPool = 0;
-        }
+        target.boostPool = 0;
         await set(ref(db, 'vault/season_v2'), target);
     }
 
@@ -226,7 +244,7 @@
     };
 
     document.getElementById('btnZero').onclick = async () => {
-        if(!confirm("HARD WIPE?")) return;
+        if(!confirm("WIPE SEASON DATA?")) return;
         const fresh = { config:{min:0.5, max:2.0}, normalPool:0, boostPool:0, overflowPool:0, totalDistributed:0 };
         for(let i=1; i<=12; i++) fresh[`round${i}`] = {n:0, b:0};
         await set(ref(db, 'vault/season_v2'), fresh);

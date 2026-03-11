@@ -33,11 +33,12 @@
     const contractAddress = "0xb436c8C192288F45ca154081aa6c04b867c1946C";
     
     // Ensure this matches your Solidity exactly!
-    const abi = [
-        "function entranceFee() public view returns (uint256)",
-        "function setEntranceFee(uint256 _newFee) external",
-        "function emergencyWithdraw() external"
-    ];
+const abi = [
+    "function entranceFee() view returns (uint256)",
+    "function setEntranceFee(uint256)", // Simplified: no variable name needed
+    "function emergencyWithdraw()",
+    "function owner() view returns (address)"
+];
 
     let signer, contract;
 

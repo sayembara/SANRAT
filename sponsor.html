@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>NUCLEAR_SPONSOR_V2_1</title>
+    <title>NUCLEAR_SPONSOR_V2_2</title>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/ethers/5.7.2/ethers.umd.min.js"></script>
     <style>
         :root { --accent: #f3ba2f; --bg: #000; --panel: #0a0a0a; --border: #222; --boost: #3498db; --danger: #e74c3c; --success: #2ecc71; }
@@ -14,18 +14,21 @@
         
         /* Buckets */
         .buckets-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; }
-        .bucket { background: #080808; border: 1px solid #1a1a1a; padding: 10px; font-size: 0.8em; border-left: 3px solid #333; }
+        .bucket { background: #080808; border: 1px solid #1a1a1a; padding: 10px; font-size: 0.8em; border-left: 3px solid #333; transition: border-color 0.3s; }
         .val-line { display: flex; justify-content: space-between; margin: 2px 0; }
         .n-text { color: var(--accent); } .b-text { color: var(--boost); }
         
-        /* Stats & Controls */
+        /* Controls */
         input, select { width: 100%; padding: 12px; background: #000; border: 1px solid #333; color: #fff; margin-bottom: 10px; box-sizing: border-box; }
         button { width: 100%; padding: 14px; border: none; font-weight: bold; cursor: pointer; text-transform: uppercase; margin-bottom: 8px; font-size: 0.75em; }
         .btn-acc { background: var(--accent); color: #000; }
         .btn-danger { background: var(--danger); color: #fff; }
         .btn-ghost { background: transparent; border: 1px solid #444; color: #888; }
         
-        #overflow-box { background: #111; border: 1px solid var(--success); color: var(--success); padding: 10px; text-align: center; font-size: 0.8em; margin-top: 10px; display: none; }
+        /* Overflow Persistent Display */
+        #overflow-status { background: #050505; border: 1px solid #222; padding: 15px; text-align: center; margin-top: 15px; border-radius: 4px; }
+        .overflow-label { font-size: 0.65em; color: #666; display: block; margin-bottom: 5px; }
+        .overflow-val { font-size: 1.2em; color: var(--success); font-weight: bold; }
     </style>
 </head>
 <body>
@@ -35,7 +38,11 @@
         <div class="panel">
             <h3>SEASON_VAULT_SENSORS</h3>
             <div class="buckets-grid" id="bucketDisplay"></div>
-            <div id="overflow-box">OVERFLOW_POOL: <span id="valOverflow">0.00</span> tBNB</div>
+            
+            <div id="overflow-status">
+                <span class="overflow-label">PHASE_4 // SEASON_OVERFLOW_POOL</span>
+                <span class="overflow-val" id="valOverflow">0.000</span> <span style="font-size: 0.8em; color: var(--success);">tBNB</span>
+            </div>
         </div>
 
         <div class="panel">
@@ -43,11 +50,11 @@
             <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 15px;">
                 <div>
                     <input type="number" id="setMin" step="0.1" placeholder="New Min">
-                    <button class="btn-acc" id="btnSetMin">UPDATE_MIN [<span id="lblMin">0.5</span>]</button>
+                    <button class="btn-acc" id="btnSetMin">UPDATE_MIN [<span id="lblMin">...</span>]</button>
                 </div>
                 <div>
                     <input type="number" id="setMax" step="0.1" placeholder="New Max">
-                    <button class="btn-acc" id="btnSetMax">UPDATE_MAX [<span id="lblMax">2.0</span>]</button>
+                    <button class="btn-acc" id="btnSetMax">UPDATE_MAX [<span id="lblMax">...</span>]</button>
                 </div>
             </div>
         </div>
@@ -94,87 +101,93 @@
     const app = initializeApp(firebaseConfig);
     const db = getDatabase(app);
 
+    // Initial UI Grid
     const grid = document.getElementById('bucketDisplay');
     for(let i=1; i<=12; i++) {
         grid.innerHTML += `
             <div class="bucket" id="bCard${i}">
-                <div style="color:#555; margin-bottom:5px;">RND_${i}</div>
-                <div class="val-line">N: <span class="n-text" id="rN${i}">0</span></div>
-                <div class="val-line">B: <span class="b-text" id="rB${i}">0</span></div>
-                <div class="val-line" style="border-top:1px solid #222; margin-top:5px; padding-top:2px;">
-                    Σ <span id="rT${i}">0</span>
+                <div style="color:#555; margin-bottom:5px; font-size:0.7em;">RND_${String(i).padStart(2, '0')}</div>
+                <div class="val-line">N: <span class="n-text" id="rN${i}">0.00</span></div>
+                <div class="val-line">B: <span class="b-text" id="rB${i}">0.00</span></div>
+                <div class="val-line" style="border-top:1px solid #222; margin-top:5px; padding-top:2px; font-weight:bold;">
+                    Σ <span id="rT${i}">0.00</span>
                 </div>
             </div>`;
     }
 
+    // Live Sync
     onValue(ref(db, 'vault/season_v2'), (snap) => {
         const data = snap.val() || {};
         const config = data.config || { min: 0.5, max: 2.0 };
         document.getElementById('lblMin').innerText = config.min;
         document.getElementById('lblMax').innerText = config.max;
         
-        const overflow = data.overflowPool || 0;
-        const overBox = document.getElementById('overflow-box');
-        if(overflow > 0) {
-            overBox.style.display = "block";
-            document.getElementById('valOverflow').innerText = overflow.toFixed(3);
-        } else {
-            overBox.style.display = "none";
-        }
+        document.getElementById('valOverflow').innerText = (data.overflowPool || 0).toFixed(3);
 
         for(let i=1; i<=12; i++) {
             const r = data[`round${i}`] || { n: 0, b: 0 };
             document.getElementById(`rN${i}`).innerText = r.n.toFixed(3);
             document.getElementById(`rB${i}`).innerText = r.b.toFixed(3);
             document.getElementById(`rT${i}`).innerText = (r.n + r.b).toFixed(3);
-            document.getElementById(`bCard${i}`).style.borderColor = r.n >= config.min ? '#f3ba2f' : '#333';
+            
+            // Visual Indicator: Gold border if Normal Min is met
+            document.getElementById(`bCard${i}`).style.borderColor = r.n >= config.min ? '#f3ba2f' : '#222';
         }
     });
 
+    onValue(ref(db, 'sponsors'), (snap) => {
+        const data = snap.val() || {};
+        const sorted = Object.entries(data).sort((a,b) => b[1] - a[1]).slice(0, 5);
+        document.getElementById('leaderboard').innerHTML = sorted.map(s => 
+            `<div class="leader-item"><span>${s[0].substring(0,10)}...</span><span>${s[1].toFixed(2)} tBNB</span></div>`
+        ).join('');
+    });
+
+    // --- REALLOCATION ENGINE ---
     async function reallocate(targetData) {
         const config = targetData.config || { min: 0.5, max: 2.0 };
         let remN = targetData.normalPool || 0;
         let remB = targetData.boostPool || 0;
 
-        // Reset rounds to zero n/b locally before re-filling
-        for(let i=1; i<=12; i++) {
-            targetData[`round${i}`] = { n: 0, b: 0 };
-        }
+        // Clear Rounds
+        for(let i=1; i<=12; i++) targetData[`round${i}`] = { n: 0, b: 0 };
 
-        // Phase 1: Sequential Normal
+        // 1. Sequential Normal (Phase 1)
         for(let i=1; i<=12; i++) {
             if(remN > 0) {
                 let add = Math.min(remN, config.min);
-                targetData[`round${i}`].n = add;
+                targetData[`round${i}`].n = Number(add.toFixed(4));
                 remN -= add;
             }
         }
 
-        // Phase 2: Equal Scaling Normal
+        // 2. Scaling Normal (Phase 2)
         if(remN > 0) {
             let spacePerRound = config.max - config.min;
             if(spacePerRound > 0) {
                 let totalSpace = spacePerRound * 12;
                 let addTotal = Math.min(remN, totalSpace);
                 let perRound = addTotal / 12;
-                for(let i=1; i<=12; i++) targetData[`round${i}`].n += perRound;
+                for(let i=1; i<=12; i++) targetData[`round${i}`].n = Number((targetData[`round${i}`].n + perRound).toFixed(4));
                 remN -= addTotal;
             }
         }
 
-        // Phase 4: Overflow
-        targetData.overflowPool = (targetData.overflowPool || 0) + remN;
+        // 3. Overflow (Phase 4)
+        targetData.overflowPool = Number(((targetData.overflowPool || 0) + remN).toFixed(4));
         targetData.normalPool = 0; 
 
-        // Boost: Always equal split
+        // 4. Boost (Equal Split)
         if(remB > 0) {
             let split = remB / 12;
-            for(let i=1; i<=12; i++) targetData[`round${i}`].b = split;
+            for(let i=1; i<=12; i++) targetData[`round${i}`].b = Number(split.toFixed(4));
             targetData.boostPool = 0;
         }
 
         await set(ref(db, 'vault/season_v2'), targetData);
     }
+
+    // --- BUTTON ACTIONS ---
 
     document.getElementById('btnSponsor').onclick = async () => {
         const amt = parseFloat(document.getElementById('sponsorAmt').value);
@@ -184,9 +197,10 @@
         const snap = await get(ref(db, 'vault/season_v2'));
         const data = snap.val() || {};
         
-        // Add existing funds in rounds back to pools for a fresh reallocation
-        let totalN = (data.normalPool || 0) + (mode === 'normal' ? amt : 0);
+        // Accumulate everything for re-calculation
+        let totalN = (data.normalPool || 0) + (mode === 'normal' ? amt : 0) + (data.overflowPool || 0);
         let totalB = (data.boostPool || 0) + (mode === 'boost' ? amt : 0);
+        data.overflowPool = 0;
 
         for(let i=1; i<=12; i++) {
             const r = data[`round${i}`] || { n: 0, b: 0 };
@@ -202,11 +216,8 @@
     document.getElementById('btnReset').onclick = async () => {
         const snap = await get(ref(db, 'vault/season_v2'));
         const data = snap.val() || {};
-        let totalN = data.normalPool || 0;
-        let totalB = data.boostPool || 0;
-        
-        // Also pull back the overflow for the reset
-        totalN += (data.overflowPool || 0);
+        let totalN = (data.normalPool || 0) + (data.overflowPool || 0);
+        let totalB = (data.boostPool || 0);
         data.overflowPool = 0;
 
         for(let i=1; i<=12; i++) {
@@ -228,16 +239,18 @@
 
     document.getElementById('btnSetMin').onclick = async () => {
         const val = parseFloat(document.getElementById('setMin').value);
-        if(isNaN(val)) return;
-        await update(ref(db, 'vault/season_v2/config'), { min: val });
-        document.getElementById('setMin').value = "";
+        if(!isNaN(val)) {
+            await update(ref(db, 'vault/season_v2/config'), { min: val });
+            document.getElementById('setMin').value = "";
+        }
     };
 
     document.getElementById('btnSetMax').onclick = async () => {
         const val = parseFloat(document.getElementById('setMax').value);
-        if(isNaN(val)) return;
-        await update(ref(db, 'vault/season_v2/config'), { max: val });
-        document.getElementById('setMax').value = "";
+        if(!isNaN(val)) {
+            await update(ref(db, 'vault/season_v2/config'), { max: val });
+            document.getElementById('setMax').value = "";
+        }
     };
 </script>
 </body>

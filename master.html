@@ -124,11 +124,37 @@
         document.getElementById('inpMin').value = "";
     };
 
-    document.getElementById('btnRunRace').onclick = async () => {
-        // Logic for picking random winner from 'registrations' would go here
-        // Note: You must also update your player page to save to ref(db, 'registrations')
-        alert("Winner logic needs RTDB migration too!");
-    };
+document.getElementById('btnRunRace').onclick = async () => {
+    try {
+        // 1. Fetch all registrations
+        const regSnap = await get(ref(db, 'registrations'));
+        const allData = regSnap.val();
+        
+        if (!allData) return alert("Lobby is empty!");
+
+        // 2. Filter players who paid for the CURRENT round
+        let eligiblePlayers = [];
+        for (let address in allData) {
+            if (allData[address].lastPaidRound === currentRound) {
+                eligiblePlayers.push(address);
+            }
+        }
+
+        if (eligiblePlayers.length === 0) return alert("No players found for this round!");
+
+        // 3. Pick a random winner
+        const winner = eligiblePlayers[Math.floor(Math.random() * eligiblePlayers.length)];
+        
+        // 4. Update the stats with the winner's address
+        await update(ref(db, 'vault/stats'), { 
+            winner: winner.toLowerCase() 
+        });
+
+        alert("🏆 RACE COMPLETE! Winner: " + winner);
+    } catch (e) {
+        console.error("Race Engine Error:", e);
+    }
+};
 
     document.getElementById('btnReset').onclick = async () => {
         const snapshot = await get(child(ref(db), 'currentRound'));

@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>NUCLEAR_SPONSOR_V3.1</title>
+    <title>NUCLEAR_SPONSOR_V3.2_AUTOCYCLE</title>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/ethers/5.7.2/ethers.umd.min.js"></script>
     <style>
         :root { --accent: #f3ba2f; --bg: #000; --panel: #0a0a0a; --border: #222; --boost: #3498db; --danger: #e74c3c; --success: #2ecc71; --disabled: #1a1a1a; }
@@ -114,7 +114,7 @@
 
     let currentActiveRound = 1;
 
-    // Build Grid
+    // Initial grid render
     const grid = document.getElementById('bucketDisplay');
     for(let i=1; i<=12; i++) {
         grid.innerHTML += `
@@ -128,6 +128,15 @@
             </div>`;
     }
 
+    // Sync Stats first to get the current round
+    onValue(ref(db, 'vault/stats'), (snap) => {
+        const stats = snap.val() || {};
+        currentActiveRound = stats.currentRound || 1;
+        document.getElementById('simActiveRound').innerText = currentActiveRound;
+        refreshBucketStyles(); 
+    });
+
+    // Sync Vault Data
     onValue(ref(db, 'vault/season_v2'), (snap) => {
         const data = snap.val() || {};
         const config = data.config || { min: 0.5, max: 2.0 };
@@ -141,10 +150,16 @@
             document.getElementById(`rN${i}`).innerText = r.n.toFixed(3);
             document.getElementById(`rB${i}`).innerText = r.b.toFixed(3);
             document.getElementById(`rT${i}`).innerText = (r.n + r.b).toFixed(3);
-            
+        }
+        refreshBucketStyles();
+    });
+
+    function refreshBucketStyles() {
+        for(let i=1; i<=12; i++) {
             const card = document.getElementById(`bCard${i}`);
             const label = document.getElementById(`statusLabel${i}`);
-            
+            if (!card) continue;
+
             if (i < currentActiveRound) {
                 card.className = "bucket past";
                 label.innerText = `RND_${String(i).padStart(2,'0')} [DONE]`;
@@ -154,16 +169,9 @@
             } else {
                 card.className = "bucket";
                 label.innerText = `RND_${String(i).padStart(2,'0')} [WAIT]`;
-                card.style.borderColor = r.n >= config.min ? '#f3ba2f' : '#222';
             }
         }
-    });
-
-    onValue(ref(db, 'vault/stats'), (snap) => {
-        const stats = snap.val() || {};
-        currentActiveRound = stats.currentRound || 1;
-        document.getElementById('simActiveRound').innerText = currentActiveRound;
-    });
+    }
 
     async function reallocate(targetData) {
         const config = targetData.config || { min: 0.5, max: 2.0 };
@@ -245,13 +253,13 @@
 
         const newTotalDist = (seasonSnap.val().totalDistributed || 0) + prize;
         
-        // DRAIN ACTIVE BUCKET & UPDATE STATS
+        // 1. Drain active bucket
         await update(ref(db, 'vault/season_v2'), {
             [`round${curR}`]: { n: 0, b: 0 },
             totalDistributed: Number(newTotalDist.toFixed(4))
         });
 
-        // INCREMENT ROUND (OR LOOP TO 1)
+        // 2. Increment round
         const nextR = curR >= 12 ? 1 : curR + 1;
         
         await update(ref(db, 'vault/stats'), {
@@ -261,9 +269,19 @@
             carCount: 0
         });
 
-        document.getElementById('sim-status').innerText = nextR === 1 
-            ? "// SEASON RESTARTING... //" 
-            : `// R${curR} PAID OUT //`;
+        // 3. AUTO-REFILL IF NEW SEASON
+        if(nextR === 1) {
+            document.getElementById('sim-status').innerText = "// NEW SEASON INITIALIZING... //";
+            const freshSnap = await get(ref(db, 'vault/season_v2'));
+            const freshData = freshSnap.val();
+            // Pull any leftover overflow into the normal pool to refill the 12 rounds
+            freshData.normalPool = freshData.overflowPool || 0;
+            freshData.overflowPool = 0;
+            currentActiveRound = 1; // Force local state before reallocate
+            await reallocate(freshData);
+        } else {
+            document.getElementById('sim-status').innerText = `// R${curR} PAID OUT //`;
+        }
     };
 
     document.getElementById('btnReset').onclick = async () => {

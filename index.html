@@ -108,6 +108,21 @@
         } catch (e) { console.error("Chain Read Error:", e); }
     }
 
+async function checkRegistration(address) {
+    const regRef = doc(db, "registrations", address.toLowerCase());
+    const regSnap = await getDoc(regRef);
+
+    if (regSnap.exists() && regSnap.data().paid === true) {
+        // Player already paid for this round
+        document.getElementById('depositBtn').disabled = true;
+        document.getElementById('depositBtn').innerText = "REGISTERED ✅";
+        document.getElementById('status-bar').innerText = "// ENTRY_DETECTED: READY_TO_RACE //";
+    } else {
+        document.getElementById('depositBtn').disabled = false;
+        document.getElementById('depositBtn').innerText = "2. REGISTER CAR";
+    }
+}
+    
     async function updatePlayerHistory(contractInstance) {
         try {
             const filter = contractInstance.filters.Deposit(userAddress);
@@ -140,26 +155,26 @@
         refreshBlockchainData();
     };
 
-    document.getElementById('depositBtn').onclick = async () => {
-        try {
-            const fee = await contract.entranceFee();
-            document.getElementById('status-bar').innerText = "// PENDING_METAMASK... //";
-            
-            const tx = await contract.payEntranceFee({ value: fee });
-            document.getElementById('status-bar').innerText = "// MINING_ENTRY... //";
-            await tx.wait();
+document.getElementById('depositBtn').onclick = async () => {
+    try {
+        const fee = await contract.entranceFee();
+        const tx = await contract.payEntranceFee({ value: fee });
+        await tx.wait();
 
-            // SUCCESS: Increment carCount in Firebase
-            await updateDoc(doc(db, "vault", "stats"), {
-                carCount: increment(1)
-            });
+        // 1. Mark as paid in their private record
+        await setDoc(doc(db, "registrations", userAddress.toLowerCase()), {
+            paid: true,
+            timestamp: Date.now()
+        });
 
-            document.getElementById('status-bar').innerText = "// ENTRY_CONFIRMED //";
-            refreshBlockchainData();
-        } catch (e) { 
-            document.getElementById('status-bar').innerText = "// TX_FAILED_OR_CANCELLED //";
-        }
-    };
+        // 2. Increment global car lobby
+        await updateDoc(doc(db, "vault", "stats"), {
+            carCount: increment(1)
+        });
+
+        checkRegistration(userAddress); // Refresh button state
+    } catch (e) { console.error(e); }
+};
 
     document.getElementById('claimBtn').onclick = async () => {
         try {
@@ -192,3 +207,4 @@
 </script>
 </body>
 </html>
+

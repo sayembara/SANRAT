@@ -157,22 +157,20 @@ async function checkRegistration(address) {
 
 document.getElementById('depositBtn').onclick = async () => {
     try {
+        const snap = await getDoc(doc(db, "vault", "stats"));
+        const round = snap.data().currentRound;
+
         const fee = await contract.entranceFee();
         const tx = await contract.payEntranceFee({ value: fee });
         await tx.wait();
 
-        // 1. Mark as paid in their private record
+        // Save the registration with the current Round ID
         await setDoc(doc(db, "registrations", userAddress.toLowerCase()), {
             paid: true,
-            timestamp: Date.now()
+            lastPaidRound: round
         });
 
-        // 2. Increment global car lobby
-        await updateDoc(doc(db, "vault", "stats"), {
-            carCount: increment(1)
-        });
-
-        checkRegistration(userAddress); // Refresh button state
+        await updateDoc(doc(db, "vault", "stats"), { carCount: increment(1) });
     } catch (e) { console.error(e); }
 };
 
@@ -207,4 +205,5 @@ document.getElementById('depositBtn').onclick = async () => {
 </script>
 </body>
 </html>
+
 

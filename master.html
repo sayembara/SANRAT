@@ -2,165 +2,132 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <title>MASTER_PILOT_DEBUG_V4</title>
+    <title>MASTER_PILOT_V4</title>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/ethers/5.7.2/ethers.umd.min.js"></script>
     <style>
         body { background: #000; color: #e74c3c; font-family: 'Courier New', monospace; display: flex; justify-content: center; padding: 20px; }
         .terminal { background: #080808; border: 1px solid #e74c3c; padding: 25px; width: 480px; border-radius: 8px; box-shadow: 0 0 15px rgba(231, 76, 60, 0.2); }
         .stat-box { background: #111; border: 1px solid #333; padding: 12px; margin: 10px 0; font-size: 0.85em; }
-        .live-val { color: #fff; font-weight: bold; float: right; font-size: 1.1em; }
+        .live-val { color: #fff; font-weight: bold; float: right; }
         input { width: 94%; padding: 10px; margin: 5px 0; background: #111; border: 1px solid #444; color: #fff; border-radius: 4px; }
         button { width: 100%; padding: 12px; margin: 5px 0; background: #e74c3c; color: #fff; border: none; font-weight: bold; cursor: pointer; text-transform: uppercase; border-radius: 4px; }
-        button:hover { background: #fff; color: #e74c3c; }
-        #playerList { list-style: none; padding: 0; margin-top: 10px; font-size: 0.75em; color: #aaa; max-height: 120px; overflow-y: auto; border: 1px solid #222; padding: 5px; }
-        .player-entry { padding: 4px; border-bottom: 1px solid #222; display: flex; justify-content: space-between; }
+        #playerList { list-style: none; padding: 0; font-size: 0.75em; color: #aaa; max-height: 100px; overflow-y: auto; border: 1px solid #222; }
     </style>
 </head>
 <body>
 
 <div class="terminal">
-    <h2 style="text-align:center; letter-spacing: 5px;">MASTER_V4_FIX</h2>
-    <div id="debug-log" style="font-size: 10px; color: #555; text-align: center; margin-bottom: 10px;">System: Ready</div>
-    
-    <button id="authBtn">1. AUTHENTICATE MASTER</button>
+    <h2 style="text-align:center;">MASTER_V4</h2>
+    <button id="authBtn">AUTHENTICATE MASTER</button>
 
     <div id="controls" style="display:none;">
-        <div class="stat-box">HOUSE_FUNDS: <span class="live-val" id="valFunds">LOADING...</span></div>
-        <div class="stat-box">SET_PRIZE: <span class="live-val" id="valPrize">LOADING...</span></div>
-        <div class="stat-box">MIN_CARS: <span class="live-val" id="valMin">LOADING...</span></div>
-        <div class="stat-box" style="border-color: #2ecc71;">LOBBY_COUNT: <span class="live-val" id="valLobby">0</span></div>
-        
-        <div id="winnerBanner" style="text-align:center; color: #f3ba2f; font-weight: bold; margin: 10px 0;"></div>
-        <ul id="playerList"><li>Awaiting entries...</li></ul>
-
-        <hr style="border: 0.5px dashed #333; margin: 20px 0;">
+        <div class="stat-box">HOUSE_FUNDS <span class="live-val" id="valFunds">0</span></div>
+        <div class="stat-box">PRIZE <span class="live-val" id="valPrize">0</span></div>
+        <div class="stat-box">ENTRANCE_FEE <span class="live-val" id="valFee">0</span></div>
+        <div class="stat-box">MIN_CARS <span class="live-val" id="valMin">0</span></div>
+        <div class="stat-box">LOBBY <span class="live-val" id="valLobby">0</span></div>
+        <div id="winnerBanner" style="text-align:center; color:#f3ba2f; margin:10px 0;"></div>
+        <ul id="playerList"></ul>
 
         <input type="number" step="0.01" id="inpFunds" placeholder="Add tBNB to House">
-        <button id="btnFunds">DEPOSIT TO HOUSE</button>
-
-        <input type="number" step="0.01" id="inpPrize" placeholder="New Prize Amount">
-        <button id="btnPrize">SET PRIZE AMOUNT</button>
-
-        <input type="number" id="inpMin" placeholder="New Min Cars">
+        <button id="btnFunds">DEPOSIT</button>
+        <input type="number" step="0.01" id="inpPrize" placeholder="Set Prize">
+        <button id="btnPrize">SET PRIZE</button>
+        <input type="number" step="0.001" id="inpFee" placeholder="Set Entrance Fee">
+        <button id="btnFee">SET FEE</button>
+        <input type="number" id="inpMin" placeholder="Set Min Cars">
         <button id="btnMin">SET MIN CARS</button>
-
-        <br>
-        <button id="btnRunRace" style="background:#f3ba2f; color:#000; height: 60px;">⚡ FORCE RUN RACE ⚡</button>
-        <button id="btnReset" style="background:#2ecc71; color:#000">START NEXT ROUND</button>
+        <button id="btnRunRace" style="background:#f3ba2f; color:#000;">⚡ FORCE RUN RACE ⚡</button>
+        <button id="btnReset" style="background:#2ecc71; color:#000;">START NEXT ROUND</button>
     </div>
 </div>
 
 <script type="module">
-    // 1. Change the imports to 'database' instead of 'firestore'
     import { initializeApp } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js";
-    import { getDatabase, ref, onValue, update, get, child } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-database.js";
+    import { getDatabase, ref, onValue, get, update, child } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-database.js";
 
     const firebaseConfig = {
-        apiKey: "YOUR_KEY",
+        apiKey: "YOUR_API_KEY",
         authDomain: "nuclearf1-94a6b.firebaseapp.com",
-        // This URL is vital for Realtime Database
-        databaseURL: "https://nuclearf1-94a6b-default-rtdb.asia-southeast1.firebasedatabase.app", 
+        databaseURL: "https://nuclearf1-94a6b-default-rtdb.asia-southeast1.firebasedatabase.app",
         projectId: "nuclearf1-94a6b",
         storageBucket: "nuclearf1-94a6b.appspot.com",
-        messagingSenderId: "YOUR_SENDER",
+        messagingSenderId: "YOUR_SENDER_ID",
         appId: "YOUR_APP_ID"
     };
 
     const app = initializeApp(firebaseConfig);
     const db = getDatabase(app);
     const MASTER_WALLET = "0xce9782f77ec560a1cb329f935b5d416aa41f1a5d".toLowerCase();
+    let currentRound = 1;
 
-    // AUTH BUTTON
     document.getElementById('authBtn').onclick = async () => {
         const accounts = await window.ethereum.request({ method: 'eth_requestAccounts' });
-        const user = accounts[0].toLowerCase();
-        if (user === MASTER_WALLET) {
+        if (accounts[0].toLowerCase() === MASTER_WALLET) {
             document.getElementById('controls').style.display = "block";
             document.getElementById('authBtn').style.display = "none";
-            initRTDBListeners();
-        } else { alert("Unauthorized"); }
+            init();
+        }
     };
 
-    function initRTDBListeners() {
-        const statsRef = ref(db, 'vault/stats');
-        
-        // Listen for changes in Realtime Database
-        onValue(statsRef, (snapshot) => {
-            const d = snapshot.val();
-            if (d) {
-                document.getElementById('valFunds').innerText = d.totalFunds + " tBNB";
-                document.getElementById('valPrize').innerText = d.prizeAmount + " tBNB";
-                document.getElementById('valMin').innerText = d.minCars;
-                document.getElementById('valLobby').innerText = d.carCount;
-                document.getElementById('winnerBanner').innerText = d.winner === "none" ? "" : "🏆 WINNER: " + d.winner;
-            }
+    function init() {
+        onValue(ref(db, 'vault/stats'), (snap) => {
+            const d = snap.val();
+            currentRound = d.currentRound || 1;
+            document.getElementById('valFunds').innerText = d.totalFunds + " tBNB";
+            document.getElementById('valPrize').innerText = d.prizeAmount + " tBNB";
+            document.getElementById('valFee').innerText = d.entranceFee + " tBNB";
+            document.getElementById('valMin').innerText = d.minCars;
+            document.getElementById('valLobby').innerText = d.carCount;
+            document.getElementById('winnerBanner').innerText = d.winner === "none" ? "" : "WINNER: " + d.winner;
+            updateList();
         });
     }
 
-    // --- UPDATED ACTIONS FOR RTDB ---
+    async function updateList() {
+        const snap = await get(ref(db, 'registrations'));
+        const list = document.getElementById('playerList');
+        list.innerHTML = "";
+        if (!snap.val()) return;
+        for (let wallet in snap.val()) {
+            if (snap.val()[wallet].lastPaidRound === currentRound) {
+                list.innerHTML += `<li style="padding:4px;border-bottom:1px solid #222;">${wallet.substring(0,18)}...</li>`;
+            }
+        }
+    }
+
     document.getElementById('btnFunds').onclick = async () => {
         const val = parseFloat(document.getElementById('inpFunds').value);
-        const snapshot = await get(child(ref(db), 'vault/stats'));
-        const currentFunds = snapshot.val().totalFunds || 0;
-        await update(ref(db, 'vault/stats'), { totalFunds: Number((currentFunds + val).toFixed(4)) });
-        document.getElementById('inpFunds').value = "";
+        const s = await get(ref(db, 'vault/stats'));
+        await update(ref(db, 'vault/stats'), { totalFunds: Number(((s.val().totalFunds || 0) + val).toFixed(4)) });
     };
 
     document.getElementById('btnPrize').onclick = async () => {
         const val = parseFloat(document.getElementById('inpPrize').value);
-        const snapshot = await get(child(ref(db), 'vault/stats'));
-        const currentFunds = snapshot.val().totalFunds || 0;
-        if (currentFunds < val) return alert("Low funds");
-        await update(ref(db, 'vault/stats'), { 
-            prizeAmount: val, 
-            totalFunds: Number((currentFunds - val).toFixed(4)) 
-        });
-        document.getElementById('inpPrize').value = "";
+        const s = await get(ref(db, 'vault/stats'));
+        await update(ref(db, 'vault/stats'), { prizeAmount: val, totalFunds: Number((s.val().totalFunds - val).toFixed(4)) });
+    };
+
+    document.getElementById('btnFee').onclick = async () => {
+        await update(ref(db, 'vault/stats'), { entranceFee: parseFloat(document.getElementById('inpFee').value) });
     };
 
     document.getElementById('btnMin').onclick = async () => {
-        const val = parseInt(document.getElementById('inpMin').value);
-        await update(ref(db, 'vault/stats'), { minCars: val });
-        document.getElementById('inpMin').value = "";
+        await update(ref(db, 'vault/stats'), { minCars: parseInt(document.getElementById('inpMin').value) });
     };
 
-document.getElementById('btnRunRace').onclick = async () => {
-    try {
-        // 1. Fetch all registrations
-        const regSnap = await get(ref(db, 'registrations'));
-        const allData = regSnap.val();
-        
-        if (!allData) return alert("Lobby is empty!");
-
-        // 2. Filter players who paid for the CURRENT round
-        let eligiblePlayers = [];
-        for (let address in allData) {
-            if (allData[address].lastPaidRound === currentRound) {
-                eligiblePlayers.push(address);
-            }
-        }
-
-        if (eligiblePlayers.length === 0) return alert("No players found for this round!");
-
-        // 3. Pick a random winner
-        const winner = eligiblePlayers[Math.floor(Math.random() * eligiblePlayers.length)];
-        
-        // 4. Update the stats with the winner's address
-        await update(ref(db, 'vault/stats'), { 
-            winner: winner.toLowerCase() 
-        });
-
-        alert("🏆 RACE COMPLETE! Winner: " + winner);
-    } catch (e) {
-        console.error("Race Engine Error:", e);
-    }
-};
+    document.getElementById('btnRunRace').onclick = async () => {
+        const snap = await get(ref(db, 'registrations'));
+        const regs = snap.val();
+        let pool = [];
+        for (let w in regs) if (regs[w].lastPaidRound === currentRound) pool.push(w);
+        if (pool.length === 0) return alert("Empty!");
+        const winner = pool[Math.floor(Math.random() * pool.length)];
+        await update(ref(db, 'vault/stats'), { winner: winner.toLowerCase() });
+    };
 
     document.getElementById('btnReset').onclick = async () => {
-        const snapshot = await get(child(ref(db), 'currentRound'));
-        const next = (snapshot.val() || 0) + 1;
-        await update(ref(db), { currentRound: next }); // Update global round
-        await update(ref(db, 'vault/stats'), { winner: "none", carCount: 0 });
+        await update(ref(db, 'vault/stats'), { winner: "none", carCount: 0, currentRound: currentRound + 1 });
     };
 </script>
 </body>

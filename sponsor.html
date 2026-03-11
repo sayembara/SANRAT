@@ -3,66 +3,87 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>NUCLEAR_SPONSOR_PORTAL</title>
+    <title>NUCLEAR_SPONSOR_V2</title>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/ethers/5.7.2/ethers.umd.min.js"></script>
     <style>
-        :root { --accent: #f3ba2f; --bg: #000; --panel: #0a0a0a; --border: #222; --boost: #3498db; }
+        :root { --accent: #f3ba2f; --bg: #000; --panel: #0a0a0a; --border: #222; --boost: #3498db; --danger: #e74c3c; }
         body { background: var(--bg); color: #fff; font-family: 'Courier New', monospace; margin: 0; padding: 20px; display: flex; justify-content: center; }
-        .container { width: 100%; max-width: 900px; }
-        .panel { background: var(--panel); border: 1px solid var(--border); padding: 25px; border-radius: 4px; margin-bottom: 20px; }
-        h3 { color: var(--accent); margin-top: 0; letter-spacing: 2px; border-bottom: 1px solid var(--border); padding-bottom: 10px; }
+        .container { width: 100%; max-width: 1000px; display: grid; grid-template-columns: 1fr 300px; gap: 20px; }
+        .panel { background: var(--panel); border: 1px solid var(--border); padding: 20px; border-radius: 4px; margin-bottom: 20px; }
+        h3 { color: var(--accent); margin-top: 0; font-size: 0.9em; letter-spacing: 2px; border-bottom: 1px solid var(--border); padding-bottom: 10px; margin-bottom: 15px; }
         
-        /* Grid for Round Buckets */
-        .buckets-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 15px; margin: 20px 0; }
-        .bucket { background: #111; border: 1px solid #222; padding: 10px; text-align: center; border-radius: 4px; }
-        .bucket-label { font-size: 0.7em; color: #666; display: block; }
-        .bucket-val { font-size: 0.9em; color: var(--accent); font-weight: bold; }
-        .progress-bg { background: #000; height: 4px; width: 100%; margin-top: 8px; border-radius: 2px; }
-        .progress-fill { background: var(--accent); height: 100%; width: 0%; transition: 0.3s; }
-
+        /* Buckets */
+        .buckets-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; }
+        .bucket { background: #080808; border: 1px solid #1a1a1a; padding: 10px; font-size: 0.8em; }
+        .val-line { display: flex; justify-content: space-between; margin: 2px 0; }
+        .n-text { color: var(--accent); } .b-text { color: var(--boost); }
+        
         /* Controls */
-        .input-group { display: flex; gap: 10px; margin-top: 20px; }
-        input { flex: 1; padding: 15px; background: #000; border: 1px solid #333; color: #fff; font-family: inherit; }
-        button { padding: 0 30px; background: var(--accent); border: none; font-weight: bold; cursor: pointer; text-transform: uppercase; }
+        input, select { width: 100%; padding: 10px; background: #000; border: 1px solid #333; color: #fff; margin-bottom: 10px; box-sizing: border-box; }
+        button { width: 100%; padding: 12px; border: none; font-weight: bold; cursor: pointer; text-transform: uppercase; margin-bottom: 5px; font-size: 0.75em; }
+        .btn-acc { background: var(--accent); color: #000; }
+        .btn-boost { background: var(--boost); color: #fff; }
+        .btn-danger { background: var(--danger); color: #fff; }
         
-        .mode-selector { display: flex; gap: 10px; margin-bottom: 15px; }
-        .mode-btn { flex: 1; padding: 10px; border: 1px solid #333; background: #111; color: #666; cursor: pointer; font-size: 0.8em; }
-        .mode-btn.active { border-color: var(--accent); color: var(--accent); }
-        .mode-btn.boost-active { border-color: var(--boost); color: var(--boost); }
-        
-        #status-log { font-size: 0.75em; color: #555; margin-top: 15px; border-top: 1px solid #222; padding-top: 10px; }
+        /* Leaderboard */
+        .leader-item { display: flex; justify-content: space-between; font-size: 0.75em; padding: 5px 0; border-bottom: 1px solid #111; }
     </style>
 </head>
 <body>
 
 <div class="container">
-    <div class="panel">
-        <h3>SEASON_FUNDING_MATRIX</h3>
-        <div class="buckets-grid" id="bucketDisplay">
+    <div class="main-col">
+        <div class="panel">
+            <h3>SEASON_VAULT_STATUS</h3>
+            <div class="buckets-grid" id="bucketDisplay"></div>
+        </div>
+
+        <div class="panel">
+            <h3>ADMIN_LIMIT_ADJUSTMENT</h3>
+            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 10px;">
+                <div>
+                    <label style="font-size:0.7em;">MIN_THRESHOLD (NORMAL)</label>
+                    <input type="number" id="setMin" step="0.1" placeholder="0.5">
+                    <button class="btn-acc" id="btnSetMin">SET_MIN_LIMIT</button>
+                </div>
+                <div>
+                    <label style="font-size:0.7em;">MAX_CEILING (NORMAL)</label>
+                    <input type="number" id="setMax" step="0.1" placeholder="2.0">
+                    <button class="btn-acc" id="btnSetMax">SET_MAX_LIMIT</button>
+                </div>
             </div>
-        <div class="stat-box" style="display:flex; justify-content: space-between; font-size: 0.8em; color: #888;">
-            <span>OVERFLOW_POOL: <span id="overflowVal" style="color:#2ecc71">0.00</span> tBNB</span>
-            <span>PHASE: <span id="phaseLabel" style="color:#fff">1 (SEQUENTIAL)</span></span>
         </div>
     </div>
 
-    <div class="panel">
-        <h3>CONTRIBUTE_SPONSORSHIP</h3>
-        <div class="mode-selector">
-            <button class="mode-btn active" id="modeNormal">NORMAL_MODE (STABILIZE)</button>
-            <button class="mode-btn" id="modeBoost">BOOST_MODE (SEASON_ONLY)</button>
+    <div class="side-col">
+        <div class="panel">
+            <h3>SPONSOR_ACTION</h3>
+            <select id="modeSelect">
+                <option value="normal">NORMAL_MODE</option>
+                <option value="boost">BOOST_MODE</option>
+            </select>
+            <input type="number" id="sponsorAmt" placeholder="Amount tBNB">
+            <button class="btn-acc" id="btnSponsor">EXECUTE_FUNDING</button>
         </div>
-        <div class="input-group">
-            <input type="number" id="sponsorAmt" step="0.01" placeholder="Amount in tBNB">
-            <button id="btnSponsor">EXECUTE_FUNDING</button>
+
+        <div class="panel">
+            <h3>TREASURY_MANAGEMENT</h3>
+            <div class="val-line"><span>NORMAL_POOL:</span><span id="poolN">0</span></div>
+            <div class="val-line"><span>BOOST_POOL:</span><span id="poolB">0</span></div>
+            <button class="btn-danger" id="btnReset" style="margin-top:10px;">RESET_VAULT</button>
+            <button class="btn-acc" id="btnAllocate">ALLOCATE_POOLS</button>
         </div>
-        <div id="status-log">// STANDBY //</div>
+
+        <div class="panel">
+            <h3>TOP_SPONSORS</h3>
+            <div id="leaderboard"></div>
+        </div>
     </div>
 </div>
 
 <script type="module">
     import { initializeApp } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js";
-    import { getDatabase, ref, onValue, get, update } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-database.js";
+    import { getDatabase, ref, onValue, get, update, set } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-database.js";
 
     const firebaseConfig = {
         apiKey: "YOUR_API_KEY",
@@ -76,122 +97,127 @@
 
     const app = initializeApp(firebaseConfig);
     const db = getDatabase(app);
-    
-    // CONFIGURATION LIMITS
-    const MIN_VAL = 0.5; // Phase 1 Goal per round
-    const MAX_VAL = 2.0; // Phase 3 Ceiling per round
-    let currentMode = 'normal';
 
-    // Initialize UI Buckets
+    // Initial UI generation
     const grid = document.getElementById('bucketDisplay');
     for(let i=1; i<=12; i++) {
         grid.innerHTML += `
             <div class="bucket">
-                <span class="bucket-label">ROUND_${i}</span>
-                <span class="bucket-val" id="bVal${i}">0.00</span>
-                <div class="progress-bg"><div class="progress-fill" id="bFill${i}"></div></div>
+                <div style="border-bottom:1px solid #222; margin-bottom:5px;">ROUND_${i}</div>
+                <div class="val-line">NORM: <span class="n-text" id="rN${i}">0</span></div>
+                <div class="val-line">BOOST: <span class="b-text" id="rB${i}">0</span></div>
+                <div class="val-line" style="font-weight:bold;">TOTAL: <span id="rT${i}">0</span></div>
             </div>`;
     }
 
-    // Toggle Modes
-    document.getElementById('modeNormal').onclick = () => {
-        currentMode = 'normal';
-        document.getElementById('modeNormal').classList.add('active');
-        document.getElementById('modeBoost').classList.remove('boost-active');
-    };
-    document.getElementById('modeBoost').onclick = () => {
-        currentMode = 'boost';
-        document.getElementById('modeBoost').classList.add('boost-active');
-        document.getElementById('modeNormal').classList.remove('active');
-    };
-
-    // Sync Data
-    onValue(ref(db, 'vault/season'), (snap) => {
+    // Sync Stats
+    onValue(ref(db, 'vault/season_v2'), (snap) => {
         const data = snap.val() || {};
-        const overflow = data.overflow || 0;
-        document.getElementById('overflowVal').innerText = overflow.toFixed(2);
-
-        let allMetMin = true;
-        let allMetMax = true;
-
+        const config = data.config || { min: 0.5, max: 2.0 };
+        document.getElementById('poolN').innerText = (data.normalPool || 0).toFixed(3);
+        document.getElementById('poolB').innerText = (data.boostPool || 0).toFixed(3);
+        
         for(let i=1; i<=12; i++) {
-            const val = data[`round${i}`] || 0;
-            document.getElementById(`bVal${i}`).innerText = val.toFixed(2);
-            
-            // Calculate progress based on MAX_VAL
-            const percent = Math.min((val / MAX_VAL) * 100, 100);
-            document.getElementById(`bFill${i}`).style.width = percent + "%";
-            
-            if(val < MIN_VAL) allMetMin = false;
-            if(val < MAX_VAL) allMetMax = false;
+            const rData = data[`round${i}`] || { n: 0, b: 0 };
+            document.getElementById(`rN${i}`).innerText = rData.n.toFixed(2);
+            document.getElementById(`rB${i}`).innerText = rData.b.toFixed(2);
+            document.getElementById(`rT${i}`).innerText = (rData.n + rData.b).toFixed(2);
         }
-
-        // Update Phase Label
-        let phase = "1 (SEQUENTIAL)";
-        if(allMetMax) phase = "4 (OVERFLOW)";
-        else if(allMetMin) phase = "2 (SCALING)";
-        document.getElementById('phaseLabel').innerText = phase;
     });
 
+    // Leaderboard Sync
+    onValue(ref(db, 'sponsors'), (snap) => {
+        const data = snap.val() || {};
+        const sorted = Object.entries(data).sort((a,b) => b[1] - a[1]).slice(0, 5);
+        const container = document.getElementById('leaderboard');
+        container.innerHTML = sorted.map(s => `<div class="leader-item"><span>${s[0].substring(0,10)}...</span><span>${s[1].toFixed(2)}</span></div>`).join('');
+    });
+
+    // ADMIN: Set Limits
+    document.getElementById('btnSetMin').onclick = () => update(ref(db, 'vault/season_v2/config'), { min: parseFloat(document.getElementById('setMin').value) });
+    document.getElementById('btnSetMax').onclick = () => update(ref(db, 'vault/season_v2/config'), { max: parseFloat(document.getElementById('setMax').value) });
+
+    // SPONSOR ACTION
     document.getElementById('btnSponsor').onclick = async () => {
         const amt = parseFloat(document.getElementById('sponsorAmt').value);
+        const mode = document.getElementById('modeSelect').value;
         if(!amt || amt <= 0) return;
+
+        const snap = await get(ref(db, 'vault/season_v2'));
+        const data = snap.val() || {};
         
-        const snap = await get(ref(db, 'vault/season'));
-        let seasonData = snap.val() || {};
-        let remaining = amt;
+        if(mode === 'normal') {
+            await update(ref(db, 'vault/season_v2'), { normalPool: (data.normalPool || 0) + amt });
+        } else {
+            await update(ref(db, 'vault/season_v2'), { boostPool: (data.boostPool || 0) + amt });
+        }
+        document.getElementById('sponsorAmt').value = "";
+    };
 
-        if (currentMode === 'normal') {
-            // PHASE 1: Sequential Fill to MIN_VAL
-            for(let i=1; i<=12; i++) {
-                let rKey = `round${i}`;
-                let current = seasonData[rKey] || 0;
-                if(current < MIN_VAL) {
-                    let space = MIN_VAL - current;
-                    let add = Math.min(remaining, space);
-                    seasonData[rKey] = Number((current + add).toFixed(4));
-                    remaining -= add;
-                }
-                if(remaining <= 0) break;
-            }
+    // RESET: Park all round funds back into pools
+    document.getElementById('btnReset').onclick = async () => {
+        if(!confirm("Reset all rounds? Funds will return to pools.")) return;
+        const snap = await get(ref(db, 'vault/season_v2'));
+        const data = snap.val() || {};
+        let totalN = data.normalPool || 0;
+        let totalB = data.boostPool || 0;
 
-            // PHASE 2: Equal Scaling to MAX_VAL
-            if(remaining > 0) {
-                let roundsNotAtMax = [];
-                for(let i=1; i<=12; i++) {
-                    if((seasonData[`round${i}`] || 0) < MAX_VAL) roundsNotAtMax.push(`round${i}`);
-                }
+        for(let i=1; i<=12; i++) {
+            const r = data[`round${i}`] || { n: 0, b: 0 };
+            totalN += r.n; totalB += r.b;
+            data[`round${i}`] = { n: 0, b: 0 };
+        }
+        data.normalPool = totalN;
+        data.boostPool = totalB;
+        await set(ref(db, 'vault/season_v2'), data);
+    };
 
-                if(roundsNotAtMax.length > 0) {
-                    let split = remaining / roundsNotAtMax.length;
-                    roundsNotAtMax.forEach(key => {
-                        let current = seasonData[key] || 0;
-                        let add = Math.min(split, MAX_VAL - current);
-                        seasonData[key] = Number((current + add).toFixed(4));
-                        remaining -= (add); // Note: Simple logic for example
-                    });
-                    // Recalculate remaining properly if some hit ceiling
-                    remaining = Math.max(0, remaining - (split * roundsNotAtMax.length)); 
-                }
-            }
+    // ALLOCATE: Distribute pools based on logic
+    document.getElementById('btnAllocate').onclick = async () => {
+        const snap = await get(ref(db, 'vault/season_v2'));
+        const data = snap.val() || {};
+        const config = data.config || { min: 0.5, max: 2.0 };
+        
+        let remN = data.normalPool || 0;
+        let remB = data.boostPool || 0;
 
-            // PHASE 4: Overflow
-            if(remaining > 0) {
-                seasonData.overflow = Number(((seasonData.overflow || 0) + remaining).toFixed(4));
-            }
-
-        } else { 
-            // BOOST MODE: Only adds to the current active round (Round 1 for this example)
-            // Or spreads only across current season rounds, ignoring overflow.
-            let split = remaining / 12;
-            for(let i=1; i<=12; i++) {
-                seasonData[`round${i}`] = Number(((seasonData[`round${i}`] || 0) + split).toFixed(4));
+        // 1. Normal Sequential Phase
+        for(let i=1; i<=12; i++) {
+            if(!data[`round${i}`]) data[`round${i}`] = { n: 0, b: 0 };
+            let space = config.min - data[`round${i}`].n;
+            if(space > 0 && remN > 0) {
+                let add = Math.min(remN, space);
+                data[`round${i}`].n += add; remN -= add;
             }
         }
 
-        await update(ref(db, 'vault/season'), seasonData);
-        document.getElementById('statusLog').innerText = "// FUNDING_DISTRIBUTED //";
-        document.getElementById('sponsorAmt').value = "";
+        // 2. Normal Scaling Phase
+        if(remN > 0) {
+            let active = [];
+            for(let i=1; i<=12; i++) if(data[`round${i}`].n < config.max) active.push(i);
+            if(active.length > 0) {
+                let split = remN / active.length;
+                active.forEach(idx => {
+                    let space = config.max - data[idx].n;
+                    let add = Math.min(split, space);
+                    data[`round${idx}`].n += add; remN -= add;
+                });
+            }
+        }
+
+        // 3. Boost Allocation (Equal to remaining rounds)
+        if(remB > 0) {
+            let split = remB / 12;
+            for(let i=1; i<=12; i++) {
+                if(!data[`round${i}`]) data[`round${i}`] = { n: 0, b: 0 };
+                data[`round${i}`].b += split;
+            }
+            remB = 0;
+        }
+
+        data.normalPool = remN;
+        data.boostPool = remB;
+        await set(ref(db, 'vault/season_v2'), data);
     };
 </script>
 </body>

@@ -65,20 +65,31 @@ const abi = [
 document.getElementById('setFeeBtn').onclick = async () => {
     try {
         const feeVal = document.getElementById('newFee').value;
+        if (!feeVal) return alert("Enter a value");
+
+        // Convert the input to Wei
         const feeWei = ethers.utils.parseEther(feeVal);
         
-        document.getElementById('status-bar').innerText = "// FORCING_TRANSACTION... //";
+        document.getElementById('status-bar').innerText = "// INITIATING_HIGH_GAS_TX... //";
 
-        // We add { gasLimit } to stop MetaMask from 'estimating' and failing
-// Replace your existing tx line with this:
-const tx = await contract.setEntranceFee(feeWei, { gasLimit: 150000 });
+        // We use a high Gas Limit (300,000) to stop the 'Revert' error
+        // Some Testnet nodes require more gas than they estimate
+        const tx = await contract.setEntranceFee(feeWei, { 
+            gasLimit: 300000 
+        });
 
-        document.getElementById('status-bar').innerText = "// MINING... //";
-        await tx.wait();
-        document.getElementById('status-bar').innerText = "// FEE_UPDATED_SUCCESS //";
+        document.getElementById('status-bar').innerText = "// MINING_ON_CHAIN... //";
+        
+        const receipt = await tx.wait();
+        
+        if (receipt.status === 1) {
+            document.getElementById('status-bar').innerText = "// SUCCESS: FEE_UPDATED //";
+        } else {
+            document.getElementById('status-bar').innerText = "// FAILED: BLOCKCHAIN_REJECTED //";
+        }
     } catch (e) {
-        console.error("Master Error:", e);
-        document.getElementById('status-bar').innerText = "// STILL_REVERTING //";
+        console.error("Master Control Error:", e);
+        document.getElementById('status-bar').innerText = "// ERROR: TX_REVERTED //";
     }
 };
 

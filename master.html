@@ -34,10 +34,10 @@
     
     // Ensure this matches your Solidity exactly!
 const abi = [
-    "function entranceFee() view returns (uint256)",
-    "function setEntranceFee(uint256)", // Simplified: no variable name needed
-    "function emergencyWithdraw()",
-    "function owner() view returns (address)"
+    "function entranceFee() public view returns (uint256)",
+    "function setEntranceFee(uint256)", 
+    "function owner() public view returns (address)",
+    "function emergencyWithdraw()"
 ];
 
     let signer, contract;
@@ -67,21 +67,18 @@ document.getElementById('setFeeBtn').onclick = async () => {
         const feeVal = document.getElementById('newFee').value;
         const feeWei = ethers.utils.parseEther(feeVal);
         
-        document.getElementById('status-bar').innerText = "// INITIATING_TRANSACTION... //";
+        document.getElementById('status-bar').innerText = "// FORCING_TRANSACTION... //";
 
-        // Force a Gas Limit to prevent the 'Revert' estimation error
-        const tx = await contract.setEntranceFee(feeWei, {
-            gasLimit: 100000 // Manually setting gas often bypasses the 'Revert' bug
-        });
+        // We add { gasLimit } to stop MetaMask from 'estimating' and failing
+// Replace your existing tx line with this:
+const tx = await contract.setEntranceFee(feeWei, { gasLimit: 150000 });
 
         document.getElementById('status-bar').innerText = "// MINING... //";
         await tx.wait();
-        
         document.getElementById('status-bar').innerText = "// FEE_UPDATED_SUCCESS //";
     } catch (e) {
-        console.error(e);
-        // If it still fails, check the console (F12) for the 'reason' string
-        document.getElementById('status-bar').innerText = "// ERROR: TX_REVERTED //";
+        console.error("Master Error:", e);
+        document.getElementById('status-bar').innerText = "// STILL_REVERTING //";
     }
 };
 

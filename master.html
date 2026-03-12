@@ -2,65 +2,76 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <title>SANRAT | Master Engine (Web3)</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>SANRAT | Master Engine</title>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/ethers/6.7.0/ethers.umd.min.js"></script>
     <style>
         :root { --glass: rgba(255, 255, 255, 0.08); --accent: #00ffcc; --gold: #ffcc00; --danger: #ff4b2b; --bg: #0b0e14; }
         body { margin: 0; padding: 20px; font-family: 'Inter', sans-serif; background: var(--bg); color: white; display: flex; flex-direction: column; align-items: center; }
         
-        /* Wallet Gate */
+        /* Auth Screen */
         #auth-gate { position: fixed; inset: 0; background: var(--bg); z-index: 999; display: flex; flex-direction: column; justify-content: center; align-items: center; text-align: center; }
-        #admin-ui { width: 100%; max-width: 1300px; display: grid; grid-template-columns: 350px 1fr; gap: 20px; display: none; }
-        
-        .card { background: var(--glass); border: 1px solid rgba(255,255,255,0.1); border-radius: 15px; padding: 20px; }
+        .btn-connect { background: #f6851b; color: white; padding: 15px 40px; font-size: 1.2rem; border-radius: 50px; border: none; cursor: pointer; font-weight: bold; transition: 0.3s; }
+        .btn-connect:hover { transform: scale(1.05); box-shadow: 0 0 20px rgba(246, 133, 27, 0.4); }
+
+        /* Main UI */
+        #admin-ui { width: 100%; max-width: 1300px; display: none; grid-template-columns: 350px 1fr; gap: 20px; }
+        .card { background: var(--glass); border: 1px solid rgba(255,255,255,0.1); border-radius: 15px; padding: 20px; position: relative; }
         .full-width { grid-column: 1 / -1; }
+        
         .status-tag { background: var(--accent); color: #000; padding: 4px 12px; border-radius: 4px; font-weight: bold; margin-left: 5px; }
         .btn-master { padding: 12px 20px; border-radius: 8px; border: none; font-weight: bold; cursor: pointer; transition: 0.2s; }
         
-        /* Table & Track Styles */
+        /* Table Styles */
         table { width: 100%; border-collapse: collapse; margin-top: 10px; font-size: 0.75rem; }
         th, td { border: 1px solid #333; padding: 12px; text-align: center; }
         .active-day-col { background: rgba(255, 75, 43, 0.2) !important; border: 2px solid var(--danger) !important; }
-        .track-box { background: #000; height: 400px; position: relative; border-radius: 10px; border: 1px solid #444; overflow: hidden; }
-        .track-lane { position: relative; width: 100%; height: 35px; border-bottom: 1px solid #222; }
-        .track-car { position: absolute; height: 20px; width: 40px; border-radius: 4px; top: 5px; font-size: 0.6rem; color: black; font-weight: 900; text-align: center; line-height: 20px; transition: left 0.8s ease-in-out; }
-        .hp-container { width: 100%; height: 3px; background: #333; position: absolute; bottom: -4px; left: 0; }
+
+        /* Track UI */
+        .track-box { background: #000; height: 450px; position: relative; border-radius: 10px; border: 1px solid #444; overflow-y: auto; overflow-x: hidden; padding-top: 10px; }
+        .track-lane { position: relative; width: 100%; height: 38px; border-bottom: 1px solid #222; }
+        .track-car { 
+            position: absolute; height: 24px; width: 42px; border-radius: 4px; top: 6px; 
+            font-size: 0.65rem; color: black; font-weight: 900; text-align: center; line-height: 24px; 
+            transition: left 1.2s cubic-bezier(0.4, 0, 0.2, 1); z-index: 2; 
+        }
+        .hp-container { width: 100%; height: 3px; background: #333; position: absolute; bottom: -5px; left: 0; }
         .hp-bar { height: 100%; transition: width 0.3s; }
     </style>
 </head>
 <body>
 
     <div id="auth-gate">
-        <h1 style="color:var(--accent)">MASTER ENGINE</h1>
-        <p>Restricted to Authorized Admin Wallet Addresses</p>
-        <button class="btn-master" style="background:var(--accent)" onclick="connectWallet()">CONNECT WALLET</button>
-        <p id="wallet-status" style="margin-top:15px; color:#666; font-size:0.8rem;"></p>
+        <h1 style="letter-spacing: 4px; color: var(--accent);">MASTER ENGINE</h1>
+        <p style="color: #666; margin-bottom: 30px;">Whitelisted Admin Wallet Required</p>
+        <button class="btn-connect" onclick="connectWallet()">Connect MetaMask</button>
+        <p id="wallet-status" style="margin-top: 20px; font-size: 0.8rem; color: var(--danger);"></p>
     </div>
 
     <div id="admin-ui">
         <div class="card full-width" style="display:flex; justify-content:space-between; align-items:center;">
             <div>
                 ROUND: <span id="roundNum" class="status-tag">-</span>
-                <span id="dayLabel" style="margin-left:25px; color:var(--danger); font-weight: 800;">DAY 1</span>
+                <span id="dayLabel" style="margin-left:25px; font-weight: 800;">DAY 1</span>
             </div>
             <div style="display: flex; gap: 10px;">
-                <button class="btn-master" style="background:var(--accent);" onclick="generateSeason()">NEW SEASON</button>
+                <button class="btn-master" style="background:var(--accent);" onclick="generateSeason()">GENERATE SEASON</button>
                 <button id="nextBtn" class="btn-master" style="background:white;" onclick="triggerTick()">NEXT DAY</button>
-                <button id="endRoundBtn" class="btn-master" style="background:var(--danger); color:white;" onclick="runToEndOfRound()">FAST END</button>
+                <button id="endRoundBtn" class="btn-master" style="background:var(--danger); color:white;" onclick="runToEndOfRound()">FAST END ROUND</button>
                 <button class="btn-master" style="background:#555; color:white;" onclick="window.location.href='race_constants.html'">CONFIG</button>
             </div>
         </div>
 
         <div class="card">
-            <h3 style="margin-top:0; color:var(--gold);">RANKINGS</h3>
-            <table id="rankTable">
-                <thead><tr><th>Rank</th><th>ID</th><th>Dist</th></tr></thead>
+            <h3 style="margin-top:0; color:var(--gold);">LEADERBOARD</h3>
+            <table>
+                <thead><tr><th>Rank</th><th>Unit</th><th>Dist</th></tr></thead>
                 <tbody id="rankBody"></tbody>
             </table>
         </div>
 
         <div class="card">
-            <h3 style="margin-top:0;">7-DAY TRACK</h3>
+            <h3 style="margin-top:0;">SEASON MATRIX</h3>
             <table>
                 <thead><tr id="mat-head"></tr></thead>
                 <tbody id="mat-body"></tbody>
@@ -80,32 +91,25 @@
         const app = initializeApp(firebaseConfig);
         const db = getDatabase(app);
 
-        // --- WALLET AUTH LOGIC ---
-        const ADMIN_WALLETS = ["0xYourWalletAddressHere".toLowerCase()]; // Add your wallet here
+        const ADMIN_WALLET = "0xCe9782f77eC560a1Cb329F935b5D416AA41f1a5d".toLowerCase();
 
+        // --- AUTH ---
         window.connectWallet = async () => {
             if (window.ethereum) {
-                try {
-                    const provider = new ethers.BrowserProvider(window.ethereum);
-                    const accounts = await provider.send("eth_requestAccounts", []);
-                    const address = accounts[0].toLowerCase();
-                    
-                    // Simple logic: If address is in list, show UI. 
-                    // (Optional: You can add a signature check here for higher security)
-                    if (ADMIN_WALLETS.includes(address) || ADMIN_WALLETS[0] === "0xyourwalletaddresshere") {
-                        document.getElementById('auth-gate').style.display = 'none';
-                        document.getElementById('admin-ui').style.display = 'grid';
-                    } else {
-                        document.getElementById('wallet-status').innerText = "Unauthorized Wallet: " + address;
-                    }
-                } catch (err) { alert("Connection Failed"); }
-            } else { alert("Please install MetaMask!"); }
+                const accounts = await window.ethereum.request({ method: 'eth_requestAccounts' });
+                if (accounts[0].toLowerCase() === ADMIN_WALLET) {
+                    document.getElementById('auth-gate').style.display = 'none';
+                    document.getElementById('admin-ui').style.display = 'grid';
+                } else {
+                    document.getElementById('wallet-status').innerText = "Unauthorized Access.";
+                }
+            } else { alert("Please install MetaMask."); }
         };
 
-        // --- TICK LOGIC (Day 7 Fix) ---
+        // --- ENGINE LOGIC ---
         window.triggerTick = async () => {
             const stateSnap = await get(ref(db, 'race_state'));
-            const state = stateSnap.val() || { day_in_round: 1, round: 1, show_end_7: false };
+            const state = stateSnap.val() || { day_in_round: 1, round: 1 };
             const carsSnap = await get(ref(db, 'cars'));
             const cars = carsSnap.val();
             const configSnap = await get(ref(db, 'race_constants'));
@@ -113,24 +117,22 @@
             
             const updates = {};
 
-            // WARP LOGIC: If we are currently showing Day 7 Results, click resets the board.
-            if (state.day_in_round === 7 && state.show_end_7) {
+            // DAY 8 WARP: If we are at the placeholder, reset for next round
+            if (state.day_in_round === 8) {
                 Object.keys(cars).forEach(id => updates[`cars/${id}/total_dist`] = 0);
                 updates['race_state/day_in_round'] = 1;
                 updates['race_state/round'] = (state.round || 1) + 1;
-                updates['race_state/show_end_7'] = false;
                 await update(ref(db), updates);
                 return;
             }
 
-            // NORMAL PROCESSING
+            // DAYS 1-7: Calculate Movement and HP
             Object.keys(cars).forEach(id => {
                 const car = cars[id];
-                const coreBonus = (car.traits?.core || 0) / 20;
-                
+                const coreBonus = (car.traits?.core || 1) / 20;
+
                 if (car.role === 'support' && (car.hp || 100) > 0) {
-                    const move = Math.random() * 200 + 100;
-                    updates[`cars/${id}/total_dist`] = (car.total_dist || 0) + move;
+                    updates[`cars/${id}/total_dist`] = (car.total_dist || 0) + (Math.random() * 200 + 100);
                     const drain = (Math.random() * (hpSet.drain.max - hpSet.drain.min) + hpSet.drain.min) - coreBonus;
                     updates[`cars/${id}/hp`] = Math.max(0, (car.hp || 100) - drain);
                 } else if (!car.role) {
@@ -139,33 +141,43 @@
                 }
             });
 
-            // Transition logic
-            if (state.day_in_round === 6) {
-                updates['race_state/day_in_round'] = 7;
-                updates['race_state/show_end_7'] = true; // Signals that Day 7 is now the visual result
-            } else {
-                updates['race_state/day_in_round'] = state.day_in_round + 1;
-                updates['race_state/show_end_7'] = false;
-            }
-
+            updates['race_state/day_in_round'] = state.day_in_round + 1;
             await update(ref(db), updates);
         };
 
         window.runToEndOfRound = async () => {
+            const btn = document.getElementById('endRoundBtn');
+            btn.disabled = true;
             for(let i=0; i<8; i++) {
                 const s = (await get(ref(db, 'race_state'))).val();
-                if(s.show_end_7) break;
+                if(s.day_in_round === 8) break;
                 await triggerTick();
-                await new Promise(r => setTimeout(r, 400));
+                await new Promise(r => setTimeout(r, 500));
             }
+            btn.disabled = false;
         };
 
-        // --- UI SYNC ---
+        // --- UI UPDATES ---
         onValue(ref(db, 'race_state'), snap => {
-            const s = snap.val() || {};
+            const s = snap.val() || { day_in_round: 1 };
+            const label = document.getElementById('dayLabel');
+            const btn = document.getElementById('nextBtn');
+            
             document.getElementById('roundNum').innerText = s.round || 1;
-            document.getElementById('dayLabel').innerText = `DAY ${s.day_in_round} ${s.show_end_7 ? '🏁 RESULT' : ''}`;
-            document.getElementById('nextBtn').innerText = s.show_end_7 ? "WARP TO NEXT ROUND" : "NEXT DAY";
+            
+            if (s.day_in_round === 8) {
+                label.innerText = "🏁 FINAL RESULTS";
+                label.style.color = "var(--gold)";
+                btn.innerText = "WARP TO NEXT ROUND";
+                btn.style.background = "var(--danger)";
+                btn.style.color = "white";
+            } else {
+                label.innerText = `DAY ${s.day_in_round}`;
+                label.style.color = "var(--danger)";
+                btn.innerText = "NEXT DAY";
+                btn.style.background = "white";
+                btn.style.color = "black";
+            }
         });
 
         onValue(ref(db, 'cars'), snap => {
@@ -181,6 +193,21 @@
                 }
             });
         });
+
+        window.generateSeason = async () => {
+            const dirs = ["straight", "right", "left"];
+            const elevs = ["flatland", "uphill", "downhill"];
+            const newC = { direction: [], elevation: [], humidity: [], weather: [] };
+            for(let i=0; i<7; i++) {
+                newC.direction.push(dirs[Math.floor(Math.random()*3)]);
+                newC.elevation.push(elevs[Math.floor(Math.random()*3)]);
+                newC.humidity.push(Math.floor(Math.random()*101));
+                newC.weather.push(newC.humidity[i] < 50 ? "dry" : "wet");
+            }
+            await update(ref(db, 'race_constants'), newC);
+            await update(ref(db, 'race_state'), { day_in_round: 1 });
+            alert("New Season Matrix Generated!");
+        };
     </script>
 </body>
 </html>

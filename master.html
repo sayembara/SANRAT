@@ -6,83 +6,58 @@
     <style>
         :root { --glass: rgba(255, 255, 255, 0.08); --accent: #00ffcc; --gold: #ffcc00; --danger: #ff4b2b; }
         body { margin: 0; padding: 20px; font-family: 'Inter', sans-serif; background: #0b0e14; color: white; display: flex; flex-direction: column; align-items: center; }
-        #admin-ui { width: 100%; max-width: 1100px; display: flex; flex-direction: column; gap: 20px; }
-        .card { background: var(--glass); border: 1px solid rgba(255,255,255,0.1); border-radius: 15px; padding: 20px; position: relative; }
+        #admin-ui { width: 100%; max-width: 1200px; display: grid; grid-template-columns: 1fr 350px; gap: 20px; }
+        .card { background: var(--glass); border: 1px solid rgba(255,255,255,0.1); border-radius: 15px; padding: 20px; }
+        .full-width { grid-column: 1 / -1; }
         
-        /* Season/Round Header */
-        .status-header { display: flex; gap: 20px; margin-bottom: 10px; font-weight: 800; text-transform: uppercase; letter-spacing: 1px; }
-        .status-tag { background: var(--accent); color: #000; padding: 4px 12px; border-radius: 4px; font-size: 0.9rem; }
-
-        .btn-master { padding: 12px 20px; border-radius: 8px; border: none; font-weight: bold; cursor: pointer; font-size: 0.8rem; }
-        table { width: 100%; border-collapse: collapse; margin-top: 15px; }
-        th, td { border: 1px solid #333; padding: 12px; text-align: center; font-size: 0.75rem; }
+        .status-tag { background: var(--accent); color: #000; padding: 4px 12px; border-radius: 4px; font-weight: bold; }
+        .btn-master { padding: 12px 20px; border-radius: 8px; border: none; font-weight: bold; cursor: pointer; margin-right: 5px; }
+        
+        table { width: 100%; border-collapse: collapse; margin-top: 10px; font-size: 0.75rem; }
+        th, td { border: 1px solid #333; padding: 8px; text-align: center; }
         th { background: rgba(255,255,255,0.05); color: var(--accent); }
-        .cur-day { background: var(--danger) !important; color: white !important; }
+        .cur-day { background: var(--danger) !important; color: white; }
 
-        /* Track Styles */
-        .track-box { 
-            background: #000; 
-            height: 350px; 
-            position: relative; 
-            overflow-x: hidden; 
-            overflow-y: auto; 
-            border-radius: 10px; 
-            border: 1px solid #444; 
-            padding-top: 20px;
-        }
-        .track-lane { position: relative; width: 100%; height: 35px; border-bottom: 1px solid #222; }
+        /* Track & Animations */
+        .track-box { background: #000; height: 350px; position: relative; border-radius: 10px; border: 1px solid #444; overflow: hidden; }
+        .marker-1000 { position: absolute; left: 50%; top: 0; bottom: 0; border-left: 2px dashed rgba(255,255,255,0.2); z-index: 1; }
+        .track-lane { position: relative; width: 100%; height: 32px; border-bottom: 1px solid #222; }
         
-        /* 1000m Marker */
-        .marker-1000 {
-            position: absolute;
-            left: 50%; /* 1000m is half of the 2000m scale */
-            top: 0;
-            bottom: 0;
-            width: 2px;
-            background: rgba(255, 255, 255, 0.2);
-            z-index: 1;
-        }
-        .marker-1000::after {
-            content: "1000m";
-            position: absolute;
-            top: -18px;
-            left: -20px;
-            font-size: 0.6rem;
-            color: #888;
-        }
-
         .track-car { 
-            position: absolute; 
-            height: 22px; 
-            width: 38px; 
-            border-radius: 4px; 
-            top: 6px; 
-            font-size: 0.65rem; 
-            color: black; 
-            font-weight: 900; 
-            text-align: center; 
-            line-height: 22px; 
-            transition: left 1.5s cubic-bezier(0.25, 0.1, 0.25, 1); 
-            z-index: 2;
+            position: absolute; height: 20px; width: 35px; border-radius: 4px; top: 6px; 
+            font-size: 0.6rem; color: black; font-weight: 900; text-align: center; line-height: 20px; 
+            transition: left 2s ease-in-out; z-index: 2; 
         }
         .track-car.hero { background: var(--gold); box-shadow: 0 0 10px var(--gold); }
-        .track-car.support { background: var(--accent); box-shadow: 0 0 10px var(--accent); }
+        .track-car.support { background: var(--accent); }
+        
+        @keyframes blink { 0% { opacity: 1; } 50% { opacity: 0.2; } 100% { opacity: 1; } }
+        .low-hp { animation: blink 0.5s infinite; border: 2px solid white; }
+
+        .hp-bar-bg { width: 100%; height: 4px; background: #333; margin-top: 2px; border-radius: 2px; }
+        .hp-fill { height: 100%; background: var(--accent); border-radius: 2px; transition: width 0.5s; }
     </style>
 </head>
 <body>
     <div id="admin-ui">
-        <div class="card">
-            <div class="status-header">
-                <div>Season: <span id="seasonNum" class="status-tag">1</span></div>
-                <div>Round: <span id="roundNum" class="status-tag">1</span></div>
+        <div class="card full-width" style="display:flex; justify-content:space-between; align-items:center;">
+            <div>
+                <span style="margin-right:20px;">SEASON: <span id="seasonNum" class="status-tag">1</span></span>
+                <span>ROUND: <span id="roundNum" class="status-tag">1</span></span>
             </div>
-            <h2 style="margin:0 0 20px 0; color:var(--accent);">RACE ENGINE MASTER</h2>
-            <div style="display: flex; gap: 10px;">
-                <button class="btn-master" style="background:var(--accent); color:#00334e;" onclick="generateSeason()">GENERATE SEASON</button>
-                <button class="btn-master" style="background:var(--danger); color:white;" onclick="toggleRace(true)">GO LIVE</button>
+            <div>
+                <button class="btn-master" style="background:var(--accent);" onclick="generateSeason()">GENERATE SEASON</button>
                 <button class="btn-master" style="background:#555; color:white;" onclick="triggerTick()">TRIGGER DAILY TICK</button>
-                <button class="btn-master" style="background:orange; color:black;" onclick="resetSeason()">RESET DATA</button>
+                <button class="btn-master" style="background:orange;" onclick="resetSeason()">RESET DISTANCE</button>
             </div>
+        </div>
+
+        <div class="card">
+            <h3 style="color:var(--gold); margin-top:0;">ROUND STANDINGS</h3>
+            <table id="rankTable">
+                <thead><tr><th>Rank</th><th>Unit</th><th>Team</th><th>Dist</th></tr></thead>
+                <tbody id="rankBody"></tbody>
+            </table>
         </div>
 
         <div class="card">
@@ -93,8 +68,8 @@
             </table>
         </div>
 
-        <div class="card">
-            <h3>LIVE TRACK MONITOR (Scale: 2000m)</h3>
+        <div class="card full-width">
+            <h3>LIVE TRACK MONITOR (2000m)</h3>
             <div class="track-box">
                 <div class="marker-1000"></div>
                 <div id="master-layer"></div>
@@ -112,18 +87,10 @@
 
         const icons = { straight:"➡️", right:"⤴️", left:"⤵️", flatland:"➖", uphill:"🔼", downhill:"🔽", dry:"☀️", wet:"🌧️" };
 
-        // 1. Sync Season and Round Numbers
-        onValue(ref(db, 'race_state'), snap => {
-            const data = snap.val() || { season: 1, round: 1 };
-            document.getElementById('seasonNum').innerText = data.season || 1;
-            document.getElementById('roundNum').innerText = data.round || 1;
-        });
-
+        // --- SEASON GENERATION WITH PENALTY LOGIC ---
         window.generateSeason = async () => {
-            if(!confirm("Generate new random season parameters?")) return;
-            
             const sSnap = await get(ref(db, 'race_state'));
-            const state = sSnap.val() || { season: 1, round: 1, day_in_round: 1 };
+            const state = sSnap.val() || { season: 1, round: 1 };
             
             const directions = ["straight", "straight", "right", "left"];
             const elevations = ["flatland", "flatland", "uphill", "downhill"];
@@ -135,115 +102,109 @@
                 weather: []
             };
 
-            // Day 1 Specialized Weather Logic
-            for(let i=0; i<7; i++) {
-                if(i === 0) {
-                    if(state.round === 1) {
-                        newConsts.weather[i] = Math.random() > 0.5 ? "dry" : "wet";
-                    } else {
-                        const carsSnap = await get(ref(db, 'cars'));
-                        const cars = Object.values(carsSnap.val() || {});
-                        const winner = cars.reduce((p, c) => (p.total_dist > c.total_dist) ? p : c);
-                        newConsts.weather[i] = (winner.traits.traction <= 5) ? "wet" : "dry";
-                    }
-                } else {
-                    const hum = newConsts.humidity[i];
-                    const roll = Math.floor(Math.random()*100)+1;
-                    newConsts.weather[i] = (hum <= 40) ? "dry" : (roll > hum ? "dry" : "wet");
+            // Round 2+ Penalty Logic
+            if (state.round >= 2) {
+                const carsSnap = await get(ref(db, 'cars'));
+                const sortedCars = Object.values(carsSnap.val()).sort((a,b) => b.total_dist - a.total_dist);
+                const winner = sortedCars[0];
+                const runnerUp = sortedCars[1];
+
+                // Winner Penalties (Day 1 & 3)
+                [0, 2].forEach(dayIdx => {
+                    newConsts.direction[dayIdx] = (winner.traits.propulsion <= 5) ? "straight" : (Math.random() > 0.5 ? "right" : "left");
+                    newConsts.humidity[dayIdx] = (winner.traits.traction <= 5) ? 100 : 0;
+                    newConsts.elevation[dayIdx] = (winner.traits.stability <= 5) ? (Math.random() > 0.5 ? "uphill" : "downhill") : "flatland";
+                });
+
+                // Runner-up Penalties (Day 2)
+                if (runnerUp) {
+                    newConsts.direction[1] = (runnerUp.traits.propulsion <= 5) ? "straight" : (Math.random() > 0.5 ? "right" : "left");
+                    newConsts.humidity[1] = (runnerUp.traits.traction <= 5) ? 100 : 0;
+                    newConsts.elevation[1] = (runnerUp.traits.stability <= 5) ? (Math.random() > 0.5 ? "uphill" : "downhill") : "flatland";
                 }
+            }
+
+            // Weather Finalization
+            for(let i=0; i<7; i++) {
+                const hum = newConsts.humidity[i];
+                newConsts.weather[i] = (hum <= 40) ? "dry" : (Math.random()*100 > hum ? "dry" : "wet");
             }
 
             await set(ref(db, 'race_constants'), newConsts);
             await update(ref(db, 'race_state'), { day_in_round: 1 });
-            alert("New Season Matrix Generated!");
+            alert("New Season Matrix Generated with Penalties applied!");
         };
 
-        // Render Matrix
-        onValue(ref(db, 'race_constants'), snap => {
-            const c = snap.val();
-            if(!c) return;
-            onValue(ref(db, 'race_state'), sSnap => {
-                const day = sSnap.val()?.day_in_round || 1;
-                let hHtml = '<th>Detail</th>';
-                for(let i=1; i<=7; i++) hHtml += `<th class="${i===day?'cur-day':''}">Day ${i}</th>`;
-                document.getElementById('mat-head').innerHTML = hHtml;
-
-                const rows = [
-                    { label: "Direction", data: c.direction, icon: true },
-                    { label: "Elevation", data: c.elevation, icon: true },
-                    { label: "Humidity %", data: c.humidity, suffix: "%" },
-                    { label: "Weather", data: c.weather, icon: true, dynamic: true }
-                ];
-
-                let bHtml = '';
-                rows.forEach(r => {
-                    bHtml += `<tr><td><b>${r.label}</b></td>`;
-                    for(let i=0; i<7; i++) {
-                        let val = r.data[i];
-                        if(r.dynamic && (i+1) > day) val = "?";
-                        const display = r.icon ? (icons[val] || val) : (val + (r.suffix || ""));
-                        bHtml += `<td>${display}</td>`;
-                    }
-                    bHtml += `</tr>`;
-                });
-                document.getElementById('mat-body').innerHTML = bHtml;
-            });
-        });
-
-        // Track Movement Logic
-        onValue(ref(db, 'race_state/paid_teams'), paidSnap => {
-            const paid = paidSnap.val() || {};
-            onValue(ref(db, 'cars'), carSnap => {
-                const layer = document.getElementById('master-layer');
-                layer.innerHTML = '';
-                Object.values(carSnap.val() || {}).forEach(c => {
-                    if(paid[c.team] && c.role) {
-                        // Position based on 2000m total track length
-                        const progress = Math.min((c.total_dist || 0) / 2000 * 100, 98);
-                        layer.innerHTML += `
-                            <div class="track-lane">
-                                <div class="track-car ${c.role}" style="left:${progress}%" title="Dist: ${c.total_dist?.toFixed(1)}m">
-                                    ${c.id}
-                                </div>
-                            </div>`;
-                    }
-                });
-            });
-        });
-
-        window.toggleRace = (live) => update(ref(db, 'master_state'), { isLive: live, label: live ? "RACING LIVE" : "OFFLINE" });
-
+        // --- DAILY TICK WITH HP MECHANICS ---
         window.triggerTick = async () => {
-            const s = await get(ref(db, 'race_state'));
-            const day = s.val()?.day_in_round || 1;
-            // Simple distance increment for demo - your physics formula goes here
-            const carsSnap = await get(ref(db, 'cars'));
+            const [cSnap, carsSnap, sSnap] = await Promise.all([get(ref(db,'race_constants')), get(ref(db,'cars')), get(ref(db,'race_state'))]);
             const cars = carsSnap.val();
+            const state = sSnap.val();
             const updates = {};
-            Object.keys(cars).forEach(k => {
-                updates[`cars/${k}/total_dist`] = (cars[k].total_dist || 0) + (Math.random() * 200 + 100);
+
+            Object.keys(cars).forEach(id => {
+                const car = cars[id];
+                const coreBonus = (car.traits.core * 2) / 20; // Simplified core impact
+                
+                if (car.role) { // Active Car
+                    // Distance
+                    updates[`cars/${id}/total_dist`] = (car.total_dist || 0) + (Math.random() * 150 + 50);
+                    // HP Drain for Support
+                    if (car.role === 'support') {
+                        const drain = (Math.random() * (12 - 5) + 5) - coreBonus;
+                        updates[`cars/${id}/hp`] = Math.max(0, (car.hp || 100) - drain);
+                    }
+                } else { // Resting Car
+                    const heal = (Math.random() * (13 - 8) + 8) + coreBonus;
+                    updates[`cars/${id}/hp`] = Math.min(100, (car.hp || 100) + heal);
+                }
             });
-            updates['race_state/day_in_round'] = day >= 7 ? 1 : day + 1;
+
+            updates['race_state/day_in_round'] = (state.day_in_round >= 7) ? 1 : state.day_in_round + 1;
+            if (state.day_in_round === 7) updates['race_state/round'] = (state.round || 1) + 1;
+
             await update(ref(db), updates);
         };
+
+        // --- UI SYNC ---
+        onValue(ref(db, 'cars'), snap => {
+            const cars = snap.val() || {};
+            const list = Object.values(cars).sort((a,b) => (b.total_dist || 0) - (a.total_dist || 0));
+            
+            // Standings
+            document.getElementById('rankBody').innerHTML = list.slice(0, 10).map((c, i) => 
+                `<tr><td>${i+1}</td><td>#${c.id}</td><td>${c.team}</td><td>${Math.round(c.total_dist || 0)}m</td></tr>`
+            ).join('');
+
+            // Track
+            const layer = document.getElementById('master-layer');
+            layer.innerHTML = '';
+            list.forEach(c => {
+                if (c.role && (c.hp || 100) > 0) {
+                    const prog = Math.min((c.total_dist || 0) / 2000 * 100, 98);
+                    const isLow = c.hp <= 15 ? 'low-hp' : '';
+                    layer.innerHTML += `
+                        <div class="track-lane">
+                            <div class="track-car ${c.role} ${isLow}" style="left:${prog}%">
+                                ${c.id}
+                                <div class="hp-bar-bg"><div class="hp-fill" style="width:${c.hp || 100}%"></div></div>
+                            </div>
+                        </div>`;
+                }
+            });
+        });
+
+        onValue(ref(db, 'race_state'), s => {
+            document.getElementById('seasonNum').innerText = s.val()?.season || 1;
+            document.getElementById('roundNum').innerText = s.val()?.round || 1;
+        });
 
         window.resetSeason = async () => {
-            if(!confirm("Reset all distances and start new Season/Round?")) return;
-            const sSnap = await get(ref(db, 'race_state'));
-            const s = sSnap.val() || { season: 1, round: 1 };
-            
-            const updates = {
-                'race_state/day_in_round': 1,
-                'race_state/paid_teams': null,
-                'race_state/season': (s.season || 1) + 1,
-                'race_state/round': 1
-            };
-            
             const carsSnap = await get(ref(db, 'cars'));
-            const cars = carsSnap.val();
-            Object.keys(cars).forEach(k => { updates[`cars/${k}/total_dist`] = 0; });
-            
-            await update(ref(db), updates);
+            const up = {};
+            Object.keys(carsSnap.val()).forEach(k => { up[`cars/${k}/total_dist`] = 0; });
+            await update(ref(db), up);
+            alert("Distances cleared for the new round!");
         };
     </script>
 </body>

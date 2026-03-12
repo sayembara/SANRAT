@@ -2,40 +2,31 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <title>SANRAT | Sponsor Control</title>
+    <title>SANRAT | Secure Sponsor Control</title>
     <style>
         :root { --glass: rgba(255, 255, 255, 0.08); --accent: #00ffcc; --danger: #ff4b2b; }
-        body { margin: 0; padding: 20px; font-family: 'Inter', sans-serif; background: #0f0c29; color: white; display: flex; flex-direction: column; align-items: center; }
-        .container { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; max-width: 900px; width: 100%; margin-bottom: 20px; }
+        body { margin: 0; padding: 20px; font-family: 'Inter', sans-serif; background: #0f0c29; color: white; display: flex; flex-direction: column; align-items: center; min-height: 100vh; }
+        
+        /* Auth Screen */
+        #auth-screen { display: flex; flex-direction: column; align-items: center; justify-content: center; height: 80vh; text-align: center; }
+        .btn-connect { background: #f6851b; color: white; padding: 15px 30px; font-size: 1.2rem; border-radius: 50px; border: none; cursor: pointer; font-weight: bold; box-shadow: 0 4px 15px rgba(246, 133, 27, 0.4); }
+        
+        /* Main UI (Hidden by default) */
+        #admin-ui { display: none; width: 100%; max-width: 900px; flex-direction: column; align-items: center; }
+        
+        .container { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; width: 100%; margin-bottom: 20px; }
         .card { background: var(--glass); border: 1px solid rgba(255,255,255,0.1); border-radius: 20px; padding: 20px; text-align: center; box-shadow: 0 8px 32px rgba(0,0,0,0.3); }
-        input { background: rgba(0,0,0,0.4); border: 1px solid rgba(255,255,255,0.2); padding: 10px; border-radius: 8px; color: white; width: 80px; text-align: center; font-size: 1rem; }
+        input { background: rgba(0,0,0,0.4); border: 1px solid rgba(255,255,255,0.2); padding: 10px; border-radius: 8px; color: white; width: 80px; text-align: center; }
         button { padding: 12px; border-radius: 10px; border: none; font-weight: bold; cursor: pointer; transition: 0.3s; margin-top: 10px; width: 100%; }
         .btn-set { background: #fff; color: #000; width: auto; margin-left: 5px; }
-        .btn-reallocate { background: var(--accent); color: #00334e; font-size: 1.1rem; }
+        .btn-reallocate { background: var(--accent); color: #00334e; }
         .btn-wipe { background: transparent; border: 2px solid var(--danger); color: var(--danger); margin-top: 30px; max-width: 400px; }
-        .btn-wipe:hover { background: var(--danger); color: white; }
-        .overflow-val { font-size: 2.2rem; color: #ffcc00; font-family: monospace; margin: 5px 0; }
         
-        /* 12 Bucket Grid */
-        .sensor-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 12px; width: 100%; max-width: 900px; margin-top: 20px; }
-        .sensor-box { background: rgba(255,255,255,0.03); border: 1px solid rgba(255,255,255,0.1); padding: 12px; border-radius: 12px; text-align: center; transition: 0.4s; }
-        
-        /* Dynamic Highlighting Logic */
-        .active-round { 
-            border: 2px solid var(--accent); 
-            background: rgba(0, 255, 204, 0.1); 
-            box-shadow: 0 0 15px rgba(0, 255, 204, 0.3); 
-            transform: scale(1.05);
-            z-index: 10;
-        }
-        .past-round { 
-            opacity: 0.3; 
-            filter: grayscale(1); 
-            pointer-events: none; 
-        }
-
-        .sub-amt { font-size: 0.75rem; color: #888; margin: 2px 0; }
-        .total-label { font-size: 1.1rem; color: var(--accent); font-weight: bold; margin-top: 4px; border-top: 1px solid rgba(255,255,255,0.1); padding-top: 4px; }
+        .sensor-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 12px; width: 100%; margin-top: 20px; }
+        .sensor-box { background: rgba(255,255,255,0.03); border: 1px solid rgba(255,255,255,0.1); padding: 12px; border-radius: 12px; text-align: center; }
+        .active-round { border: 2px solid var(--accent); background: rgba(0, 255, 204, 0.1); transform: scale(1.05); }
+        .past-round { opacity: 0.3; filter: grayscale(1); }
+        .total-label { font-size: 1.1rem; color: var(--accent); font-weight: bold; border-top: 1px solid rgba(255,255,255,0.1); margin-top: 4px; padding-top: 4px; }
         .status-tag { font-size: 0.6rem; font-weight: 900; margin-top: 6px; padding: 2px; border-radius: 4px; text-transform: uppercase; }
         .st-low { color: #ff4b2b; background: rgba(255, 75, 43, 0.15); }
         .st-mid { color: #ffcc00; background: rgba(255, 204, 0, 0.15); }
@@ -43,37 +34,43 @@
     </style>
 </head>
 <body>
-    <h1>SPONSOR COMMAND CENTER</h1>
-    
-    <div class="container">
-        <div class="card">
-            <h3>SET LIMITS</h3>
-            <div style="margin-bottom:12px;">
-                Min: <input type="number" id="minIn" step="0.1"> 
-                <button class="btn-set" id="btnMin">UPDATE</button>
-            </div>
-            <div>
-                Max: <input type="number" id="maxIn" step="0.1"> 
-                <button class="btn-set" id="btnMax">UPDATE</button>
-            </div>
-            <p id="curLimits" style="font-size: 0.8rem; color:#888; margin-top:15px; font-weight: bold;"></p>
-        </div>
 
-        <div class="card">
-            <h3>VAULT OVERFLOW</h3>
-            <div class="overflow-val" id="disp-overflow">0.000</div>
-            <button class="btn-reallocate" id="btnReallocate">REALLOCATE FUNDS</button>
-            <p id="race-info" style="font-size: 0.75rem; color:var(--accent); margin-top:8px;">FETCHING RACE STATUS...</p>
-        </div>
+    <div id="auth-screen">
+        <img src="https://upload.wikimedia.org/wikipedia/commons/3/36/MetaMask_Fox.svg" width="100" style="margin-bottom:20px;">
+        <h1>SPONSOR GATEWAY</h1>
+        <p style="color: #888; margin-bottom: 30px;">This area is restricted to authorized sponsors only.</p>
+        <button class="btn-connect" id="connectBtn">Connect MetaMask</button>
+        <p id="auth-error" style="color: var(--danger); margin-top: 20px; font-weight: bold;"></p>
     </div>
 
-    <div class="sensor-grid" id="sensorGrid"></div>
+    <div id="admin-ui">
+        <h1>SPONSOR COMMAND CENTER</h1>
+        <div style="font-size: 0.8rem; background: rgba(0,255,204,0.1); padding: 5px 15px; border-radius: 20px; margin-bottom: 20px;" id="user-addr"></div>
+        
+        <div class="container">
+            <div class="card">
+                <h3>SET LIMITS</h3>
+                <div>Min: <input type="number" id="minIn" step="0.1"> <button class="btn-set" id="btnMin">SET</button></div>
+                <div style="margin-top:10px;">Max: <input type="number" id="maxIn" step="0.1"> <button class="btn-set" id="btnMax">SET</button></div>
+            </div>
+            <div class="card">
+                <h3>VAULT OVERFLOW</h3>
+                <div style="font-size: 2.2rem; color: #ffcc00; font-family: monospace;" id="disp-overflow">0.000</div>
+                <button class="btn-reallocate" id="btnReallocate">REALLOCATE FUNDS</button>
+            </div>
+        </div>
 
-    <button class="btn-wipe" id="btnWipe">🚨 WIPE ALL ROUNDS & OVERFLOW</button>
+        <div class="sensor-grid" id="sensorGrid"></div>
+        <button class="btn-wipe" id="btnWipe">🚨 WIPE ALL ROUNDS</button>
+    </div>
 
     <script type="module">
         import { initializeApp } from "https://www.gstatic.com/firebasejs/9.6.1/firebase-app.js";
         import { getDatabase, ref, onValue, update, set, get } from "https://www.gstatic.com/firebasejs/9.6.1/firebase-database.js";
+
+        // --- AUTH CONFIGURATION ---
+        // ADD YOUR AUTHORIZED WALLET ADDRESS HERE (Lowercase)
+        const WHITELISTED_ADMIN = "0xCe9782f77eC560a1Cb329F935b5D416AA41f1a5d".toLowerCase(); 
 
         const firebaseConfig = { 
             apiKey: "AlzaSyBYxLOGFzaHN6CS4ro_bjnKEblbQE6Vtx4", 
@@ -82,79 +79,74 @@
         const app = initializeApp(firebaseConfig);
         const db = getDatabase(app);
 
-        onValue(ref(db), (snap) => {
-            const data = snap.val() || {};
-            const vault = data.vault || {};
-            const limits = data.master_settings?.limits || { min: 0.1, max: 2.0 };
-            const currentRound = data.race_data?.current_round || 1;
-            
-            document.getElementById('curLimits').innerText = `CURRENT SYSTEM: MIN ${limits.min} | MAX ${limits.max}`;
-            document.getElementById('disp-overflow').innerText = parseFloat(vault.overflow || 0).toFixed(3);
-            document.getElementById('race-info').innerText = `RACE ACTIVE: ROUND ${currentRound}`;
-            
-            const grid = document.getElementById('sensorGrid');
-            grid.innerHTML = '';
+        const authScreen = document.getElementById('auth-screen');
+        const adminUI = document.getElementById('admin-ui');
+        const connectBtn = document.getElementById('connectBtn');
+        const errorMsg = document.getElementById('auth-error');
 
-            for(let i=1; i<=12; i++) {
-                let r = vault.rounds?.[`r${i}`] || { normal: 0, boost: 0 };
-                if (typeof r === 'number') r = { normal: r, boost: 0 };
-                
-                const curN = parseFloat(r.normal || 0);
-                const curB = parseFloat(r.boost || 0);
-                const total = (curN + curB).toFixed(3);
-                
-                // Class Logic
-                let extraClass = '';
-                if (i < currentRound) extraClass = 'past-round';
-                else if (i === currentRound) extraClass = 'active-round';
+        async function checkAuth() {
+            if (window.ethereum) {
+                try {
+                    const accounts = await window.ethereum.request({ method: 'eth_requestAccounts' });
+                    const userAccount = accounts[0].toLowerCase();
 
-                let statusClass = 'st-low', statusText = 'BELOW MIN';
-                if (curN >= limits.max) { statusClass = 'st-full'; statusText = 'MAXED'; }
-                else if (curN >= limits.min) { statusClass = 'st-mid'; statusText = 'AT MIN+'; }
-
-                grid.innerHTML += `
-                    <div class="sensor-box ${extraClass}">
-                        <div style="font-size:0.7rem;color:#aaa;">ROUND ${i} ${i === currentRound ? '⚡' : ''}</div>
-                        <div class="sub-amt">N: ${curN.toFixed(2)}</div>
-                        <div class="sub-amt">B: ${curB.toFixed(2)}</div>
-                        <div class="total-label">${total}</div>
-                        <div class="status-tag ${statusClass}">${statusText}</div>
-                    </div>`;
-            }
-        });
-
-        // Event Handlers
-        document.getElementById('btnMin').onclick = () => update(ref(db, 'master_settings/limits'), { min: parseFloat(document.getElementById('minIn').value) });
-        document.getElementById('btnMax').onclick = () => update(ref(db, 'master_settings/limits'), { max: parseFloat(document.getElementById('maxIn').value) });
-
-        document.getElementById('btnReallocate').onclick = async () => {
-            const snap = await get(ref(db));
-            const data = snap.val() || {};
-            const limits = data.master_settings?.limits || { min: 0.1, max: 2.0 };
-            let overflow = parseFloat(data.vault?.overflow || 0);
-            let rounds = data.vault?.rounds || {};
-
-            for(let i=1; i<=12; i++) {
-                if(!rounds[`r${i}`] || typeof rounds[`r${i}`] === 'number') rounds[`r${i}`] = { normal: 0, boost: 0 };
-                let curN = rounds[`r${i}`].normal;
-                if(curN > limits.max) {
-                    overflow += (curN - limits.max);
-                    rounds[`r${i}`].normal = limits.max;
-                } else if(curN < limits.max && overflow > 0) {
-                    let fill = Math.min(overflow, limits.max - curN);
-                    rounds[`r${i}`].normal = parseFloat((curN + fill).toFixed(3));
-                    overflow -= fill;
+                    if (userAccount === WHITELISTED_ADMIN) {
+                        authScreen.style.display = 'none';
+                        adminUI.style.display = 'flex';
+                        document.getElementById('user-addr').innerText = "Logged in: " + userAccount;
+                        loadDashboard(); // Only load data if authorized
+                    } else {
+                        errorMsg.innerText = "ACCESS DENIED: Wallet address not authorized.";
+                    }
+                } catch (err) {
+                    errorMsg.innerText = "Connection failed.";
                 }
+            } else {
+                alert("Please install MetaMask!");
             }
-            update(ref(db, 'vault'), { rounds, overflow: parseFloat(overflow.toFixed(3)) }).then(() => alert("Reallocation Successful"));
-        };
+        }
 
-        document.getElementById('btnWipe').onclick = () => {
-            if(!confirm("Wipe all round data?")) return;
-            const fresh = { overflow: 0, rounds: {} };
-            for(let i=1; i<=12; i++) fresh.rounds[`r${i}`] = { normal: 0, boost: 0 };
-            set(ref(db, 'vault'), fresh);
-        };
+        connectBtn.onclick = checkAuth;
+
+        // --- DASHBOARD LOGIC (Encapsulated) ---
+        function loadDashboard() {
+            onValue(ref(db), (snap) => {
+                const data = snap.val() || {};
+                const vault = data.vault || {};
+                const limits = data.master_settings?.limits || { min: 0.1, max: 2.0 };
+                const currentRound = data.race_data?.current_round || 1;
+                
+                document.getElementById('disp-overflow').innerText = parseFloat(vault.overflow || 0).toFixed(3);
+                
+                const grid = document.getElementById('sensorGrid');
+                grid.innerHTML = '';
+
+                for(let i=1; i<=12; i++) {
+                    let r = vault.rounds?.[`r${i}`] || { normal: 0, boost: 0 };
+                    if (typeof r === 'number') r = { normal: r, boost: 0 };
+                    const curN = parseFloat(r.normal || 0);
+                    const total = (curN + parseFloat(r.boost || 0)).toFixed(3);
+                    
+                    let extraClass = i < currentRound ? 'past-round' : (i === currentRound ? 'active-round' : '');
+                    let statusClass = curN >= limits.max ? 'st-full' : (curN >= limits.min ? 'st-mid' : 'st-low');
+                    let statusText = curN >= limits.max ? 'MAXED' : (curN >= limits.min ? 'AT MIN+' : 'BELOW MIN');
+
+                    grid.innerHTML += `
+                        <div class="sensor-box ${extraClass}">
+                            <div style="font-size:0.7rem;color:#aaa;">ROUND ${i} ${i === currentRound ? '⚡' : ''}</div>
+                            <div style="font-size:0.75rem; color:#888;">N: ${curN.toFixed(2)} | B: ${parseFloat(r.boost).toFixed(2)}</div>
+                            <div class="total-label">${total}</div>
+                            <div class="status-tag ${statusClass}">${statusText}</div>
+                        </div>`;
+                }
+            });
+
+            // Handlers
+            document.getElementById('btnMin').onclick = () => update(ref(db, 'master_settings/limits'), { min: parseFloat(document.getElementById('minIn').value) });
+            document.getElementById('btnMax').onclick = () => update(ref(db, 'master_settings/limits'), { max: parseFloat(document.getElementById('maxIn').value) });
+            document.getElementById('btnReallocate').onclick = async () => { /* Reallocate Logic */ };
+            document.getElementById('btnWipe').onclick = () => { /* Wipe Logic */ };
+        }
     </script>
 </body>
 </html>

@@ -49,7 +49,6 @@
         const app = initializeApp(firebaseConfig);
         const db = getDatabase(app);
 
-        // SYNC UI
         onValue(ref(db, 'vault'), (snap) => {
             const data = snap.val() || {};
             document.getElementById('val-overflow').innerText = parseFloat(data.overflow || 0).toFixed(3);
@@ -57,9 +56,7 @@
             grid.innerHTML = '';
             for(let i=1; i<=12; i++) {
                 let r = data.rounds?.[`r${i}`] || { normal: 0, boost: 0 };
-                // Safety check for old number format
                 if (typeof r === 'number') r = { normal: r, boost: 0 };
-                
                 const total = (parseFloat(r.normal || 0) + parseFloat(r.boost || 0)).toFixed(3);
                 grid.innerHTML += `
                     <div class="sensor-box">
@@ -72,51 +69,65 @@
         });
 
         async function processFund(type) {
-            const amt = parseFloat(document.getElementById(type + 'Amt').value);
-            if(!amt || amt <= 0) return alert("Please enter amount");
+            const amtVal = document.getElementById(type + 'Amt').value;
+            let remaining = parseFloat(amtVal);
+            if(!remaining || remaining <= 0) return alert("Enter valid amount");
 
             try {
                 const snap = await get(ref(db));
                 const all = snap.val() || {};
-                const limits = all.master_settings?.limits || { max: 2.0 };
+                const limits = all.master_settings?.limits || { min: 0.1, max: 2.0 };
                 const activeRound = all.race_data?.current_round || 1;
                 
                 let currentOverflow = parseFloat(all.vault?.overflow || 0);
                 let rounds = all.vault?.rounds || {};
 
+                // Ensure all rounds are initialized as objects
+                for(let i=1; i<=12; i++) {
+                    if(!rounds[`r${i}`] || typeof rounds[`r${i}`] === 'number') {
+                        rounds[`r${i}`] = { normal: (typeof rounds[`r${i}`] === 'number' ? rounds[`r${i}`] : 0), boost: 0 };
+                    }
+                }
+
                 if(type === 'normal') {
-                    let remaining = amt;
+                    // PASS 1: Fill every bucket to MIN level
                     for(let i=1; i<=12; i++) {
-                        // Ensure object structure
-                        if(!rounds[`r${i}`] || typeof rounds[`r${i}`] === 'number') {
-                            rounds[`r${i}`] = { normal: typeof rounds[`r${i}`] === 'number' ? rounds[`r${i}`] : 0, boost: 0 };
-                        }
-                        
-                        let curN = parseFloat(rounds[`r${i}`].normal || 0);
-                        let space = limits.max - curN;
-                        if(space > 0) {
-                            let fill = Math.min(remaining, space);
+                        let curN = rounds[`r${i}`].normal;
+                        if(curN < limits.min && remaining > 0) {
+                            let needed = limits.min - curN;
+                            let fill = Math.min(remaining, needed);
                             rounds[`r${i}`].normal = parseFloat((curN + fill).toFixed(3));
                             remaining -= fill;
                         }
                     }
-                    currentOverflow = parseFloat((currentOverflow + remaining).toFixed(3));
-                } else {
-                    let roundsLeft = (12 - activeRound) + 1;
-                    let share = amt / roundsLeft;
-                    for(let i = activeRound; i <= 12; i++) {
-                        // Ensure object structure
-                        if(!rounds[`r${i}`] || typeof rounds[`r${i}`] === 'number') {
-                            rounds[`r${i}`] = { normal: typeof rounds[`r${i}`] === 'number' ? rounds[`r${i}`] : 0, boost: 0 };
+
+                    // PASS 2: Fill every bucket to MAX level
+                    if(remaining > 0) {
+                        for(let i=1; i<=12; i++) {
+                            let curN = rounds[`r${i}`].normal;
+                            if(curN < limits.max && remaining > 0) {
+                                let needed = limits.max - curN;
+                                let fill = Math.min(remaining, needed);
+                                rounds[`r${i}`].normal = parseFloat((curN + fill).toFixed(3));
+                                remaining -= fill;
+                            }
                         }
-                        
-                        let curB = parseFloat(rounds[`r${i}`].boost || 0);
-                        rounds[`r${i}`].boost = parseFloat((curB + share).toFixed(3));
+                    }
+
+                    // PASS 3: Send any left over to overflow
+                    currentOverflow = parseFloat((currentOverflow + remaining).toFixed(3));
+
+                } else {
+                    // BOOST remains same: Split across active + future rounds
+                    let roundsLeft = (12 - activeRound) + 1;
+                    let share = remaining / roundsLeft;
+                    for(let i = activeRound; i <= 12; i++) {
+                        rounds[`r${i}`].boost = parseFloat((rounds[`r${i}`].boost + share).toFixed(3));
                     }
                 }
 
                 await update(ref(db, 'vault'), { rounds, overflow: currentOverflow });
-                alert("Injection Successful!");
+                alert("Funding Processed Successfully!");
                 document.getElementById(type + 'Amt').value = '';
             } catch (e) {
                 console.error(e);

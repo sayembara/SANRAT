@@ -22,13 +22,12 @@
         .btn-view { background: var(--gold); color: #000; font-size: 0.7rem; padding: 5px 10px; }
         .btn-wipe { background: transparent; border: 2px solid var(--danger); color: var(--danger); width: 100%; margin-top: 20px; }
 
-        /* Updated Sensor Grid for Normal/Boost display */
         .sensor-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 12px; width: 100%; }
-        .sensor-box { background: rgba(255,255,255,0.03); border: 1px solid rgba(255,255,255,0.1); padding: 12px; border-radius: 12px; text-align: center; }
-        .val-sub { font-size: 0.65rem; color: #888; margin-bottom: 2px; }
-        .val-main { font-size: 0.95rem; font-weight: bold; color: var(--accent); border-top: 1px solid rgba(255,255,255,0.05); padding-top: 4px; margin-top: 4px; }
+        .sensor-box { background: rgba(255,255,255,0.03); border: 1px solid rgba(255,255,255,0.1); padding: 12px; border-radius: 12px; text-align: center; position: relative; }
+        .val-sub-n { font-size: 0.65rem; color: #bbb; }
+        .val-sub-b { font-size: 0.65rem; color: var(--gold); font-weight: bold; }
+        .val-main { font-size: 0.95rem; font-weight: bold; color: var(--accent); border-top: 1px solid rgba(255,255,255,0.08); padding-top: 4px; margin-top: 4px; }
         
-        /* Collapsible History */
         .history-header { display: flex; justify-content: space-between; align-items: center; cursor: pointer; user-select: none; }
         .history-content { display: none; margin-top: 15px; border-top: 1px solid rgba(255,255,255,0.1); padding-top: 10px; }
         .history-list { text-align: left; max-height: 200px; overflow-y: auto; }
@@ -36,11 +35,12 @@
         .toggle-arrow { transition: transform 0.3s; }
         .active .toggle-arrow { transform: rotate(180deg); }
 
-        /* Modal Style */
         #historyModal { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.9); z-index: 100; justify-content: center; align-items: center; }
         .modal-content { background: #1a1a2e; border: 1px solid var(--accent); padding: 30px; border-radius: 20px; width: 90%; max-width: 500px; }
         table { width: 100%; border-collapse: collapse; margin-top: 15px; font-size: 0.8rem; }
         th, td { border: 1px solid rgba(255,255,255,0.1); padding: 6px; text-align: center; }
+        .td-b { color: var(--gold); }
+        .td-t { color: var(--accent); font-weight: bold; }
     </style>
 </head>
 <body>
@@ -97,7 +97,6 @@
         const app = initializeApp(firebaseConfig);
         const db = getDatabase(app);
 
-        // UI Interactions
         document.getElementById('toggleHistory').onclick = () => {
             const content = document.getElementById('historyContent');
             const card = document.getElementById('historyCard');
@@ -127,7 +126,6 @@
                 document.getElementById('curLimits').innerText = `CURRENT: MIN ${limits.min} | MAX ${limits.max}`;
                 document.getElementById('disp-overflow').innerText = parseFloat(vault.overflow || 0).toFixed(3);
                 
-                // Sensor Grid with Normal and Boost info
                 const grid = document.getElementById('sensorGrid');
                 grid.innerHTML = '';
                 for(let i=1; i<=12; i++) {
@@ -138,14 +136,13 @@
                     
                     grid.innerHTML += `
                         <div class="sensor-box">
-                            <div style="font-size:0.6rem;color:#666;margin-bottom:4px;">ROUND ${i}</div>
-                            <div class="val-sub">N: ${n}</div>
-                            <div class="val-sub">B: ${b}</div>
+                            <div style="font-size:0.55rem;color:#555;margin-bottom:4px;">RD ${i}</div>
+                            <div class="val-sub-n">N: ${n}</div>
+                            <div class="val-sub-b">B: ${b}</div>
                             <div class="val-main">${total}</div>
                         </div>`;
                 }
 
-                // History List
                 const histList = document.getElementById('history-list');
                 const entries = Object.entries(history).reverse();
                 histList.innerHTML = entries.length > 0 ? entries.map(([id, e]) => `
@@ -161,9 +158,14 @@
                     let table = `<table><tr><th>RD</th><th>Norm</th><th>Boost</th><th>Total</th></tr>`;
                     for(let i=1; i<=12; i++) {
                         let rd = states[`r${i}`];
-                        table += `<tr><td>${i}</td><td>${parseFloat(rd.normal).toFixed(2)}</td><td>${parseFloat(rd.boost).toFixed(2)}</td><td style="color:var(--accent)">${rd.total}</td></tr>`;
+                        table += `<tr>
+                            <td>${i}</td>
+                            <td>${parseFloat(rd.normal).toFixed(2)}</td>
+                            <td class="td-b">${parseFloat(rd.boost).toFixed(2)}</td>
+                            <td class="td-t">${rd.total}</td>
+                        </tr>`;
                     }
-                    document.getElementById('modalBody').innerHTML = table + `</table><p style="font-size:0.75rem; color:var(--gold); margin-top:10px;">Overflow Reclaimed: ${record.moved_from_overflow} tBNB</p>`;
+                    document.getElementById('modalBody').innerHTML = table + `</table><p style="font-size:0.75rem; color:var(--gold); margin-top:10px;">Reclaimed: ${record.moved_from_overflow} tBNB</p>`;
                     document.getElementById('historyModal').style.display = 'flex';
                 };
             });

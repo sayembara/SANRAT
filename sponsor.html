@@ -22,10 +22,13 @@
         .btn-view { background: var(--gold); color: #000; font-size: 0.7rem; padding: 5px 10px; }
         .btn-wipe { background: transparent; border: 2px solid var(--danger); color: var(--danger); width: 100%; margin-top: 20px; }
 
+        /* Updated Sensor Grid for Normal/Boost display */
         .sensor-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 12px; width: 100%; }
         .sensor-box { background: rgba(255,255,255,0.03); border: 1px solid rgba(255,255,255,0.1); padding: 12px; border-radius: 12px; text-align: center; }
+        .val-sub { font-size: 0.65rem; color: #888; margin-bottom: 2px; }
+        .val-main { font-size: 0.95rem; font-weight: bold; color: var(--accent); border-top: 1px solid rgba(255,255,255,0.05); padding-top: 4px; margin-top: 4px; }
         
-        /* Expandable History */
+        /* Collapsible History */
         .history-header { display: flex; justify-content: space-between; align-items: center; cursor: pointer; user-select: none; }
         .history-content { display: none; margin-top: 15px; border-top: 1px solid rgba(255,255,255,0.1); padding-top: 10px; }
         .history-list { text-align: left; max-height: 200px; overflow-y: auto; }
@@ -87,7 +90,7 @@
 
     <script type="module">
         import { initializeApp } from "https://www.gstatic.com/firebasejs/9.6.1/firebase-app.js";
-        import { getDatabase, ref, onValue, update, get, set } from "https://www.gstatic.com/firebasejs/9.6.1/firebase-database.js";
+        import { getDatabase, ref, onValue, update, set } from "https://www.gstatic.com/firebasejs/9.6.1/firebase-database.js";
 
         const WHITELISTED_ADMIN = "0xCe9782f77eC560a1Cb329F935b5D416AA41f1a5d".toLowerCase(); 
         const firebaseConfig = { apiKey: "AlzaSyBYxLOGFzaHN6CS4ro_bjnKEblbQE6Vtx4", databaseURL: "https://nuclearf1-94a6b-default-rtdb.asia-southeast1.firebasedatabase.app" };
@@ -124,15 +127,22 @@
                 document.getElementById('curLimits').innerText = `CURRENT: MIN ${limits.min} | MAX ${limits.max}`;
                 document.getElementById('disp-overflow').innerText = parseFloat(vault.overflow || 0).toFixed(3);
                 
-                // Sensor Grid
+                // Sensor Grid with Normal and Boost info
                 const grid = document.getElementById('sensorGrid');
                 grid.innerHTML = '';
                 for(let i=1; i<=12; i++) {
                     let r = vault.rounds?.[`r${i}`] || { normal: 0, boost: 0 };
-                    grid.innerHTML += `<div class="sensor-box">
-                        <div style="font-size:0.65rem;color:#888;">RD ${i}</div>
-                        <div style="font-size:0.9rem; font-weight:bold; color:var(--accent);">${(parseFloat(r.normal||0)+parseFloat(r.boost||0)).toFixed(3)}</div>
-                    </div>`;
+                    let n = parseFloat(r.normal || 0).toFixed(2);
+                    let b = parseFloat(r.boost || 0).toFixed(2);
+                    let total = (parseFloat(n) + parseFloat(b)).toFixed(3);
+                    
+                    grid.innerHTML += `
+                        <div class="sensor-box">
+                            <div style="font-size:0.6rem;color:#666;margin-bottom:4px;">ROUND ${i}</div>
+                            <div class="val-sub">N: ${n}</div>
+                            <div class="val-sub">B: ${b}</div>
+                            <div class="val-main">${total}</div>
+                        </div>`;
                 }
 
                 // History List
@@ -140,7 +150,7 @@
                 const entries = Object.entries(history).reverse();
                 histList.innerHTML = entries.length > 0 ? entries.map(([id, e]) => `
                     <div class="log-entry">
-                        <span>Season ${e.from_season} <small style="color:#666; margin-left:10px;">${e.timestamp}</small></span>
+                        <span>Season ${e.from_season} <small style="color:#555; margin-left:10px;">${e.timestamp}</small></span>
                         <button class="btn-view" onclick="window.showDetails('${id}')">DETAILS</button>
                     </div>`).join('') : '<i>No records found.</i>';
 
@@ -148,10 +158,10 @@
                     const record = history[id];
                     const states = record.final_vault_state;
                     document.getElementById('modalTitle').innerText = `Season ${record.from_season} Summary`;
-                    let table = `<table><tr><th>RD</th><th>Norm</th><th>Boost</th></tr>`;
+                    let table = `<table><tr><th>RD</th><th>Norm</th><th>Boost</th><th>Total</th></tr>`;
                     for(let i=1; i<=12; i++) {
                         let rd = states[`r${i}`];
-                        table += `<tr><td>${i}</td><td>${parseFloat(rd.normal).toFixed(2)}</td><td>${parseFloat(rd.boost).toFixed(2)}</td></tr>`;
+                        table += `<tr><td>${i}</td><td>${parseFloat(rd.normal).toFixed(2)}</td><td>${parseFloat(rd.boost).toFixed(2)}</td><td style="color:var(--accent)">${rd.total}</td></tr>`;
                     }
                     document.getElementById('modalBody').innerHTML = table + `</table><p style="font-size:0.75rem; color:var(--gold); margin-top:10px;">Overflow Reclaimed: ${record.moved_from_overflow} tBNB</p>`;
                     document.getElementById('historyModal').style.display = 'flex';

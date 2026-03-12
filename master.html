@@ -23,11 +23,10 @@
         th, td { border: 1px solid #333; padding: 12px; text-align: center; }
         .active-day-col { background: rgba(255, 75, 43, 0.2) !important; border: 2px solid var(--danger) !important; }
 
-        /* Track UI with 1000m Line */
         .track-box { background: #000; height: 450px; position: relative; border-radius: 10px; border: 1px solid #444; overflow-y: auto; overflow-x: hidden; padding-top: 10px; }
-        .finish-line { position: absolute; left: 50%; top: 0; bottom: 0; width: 2px; border-left: 2px dashed rgba(255,255,255,0.3); z-index: 1; }
-        .finish-label { position: absolute; left: 50%; top: 5px; transform: translateX(-50%); font-size: 0.6rem; color: rgba(255,255,255,0.5); z-index: 1; }
-        
+        .finish-line { position: absolute; left: 50%; top: 0; bottom: 0; width: 2px; border-left: 2px dashed rgba(255,255,255,0.4); z-index: 1; }
+        .finish-label { position: absolute; left: 50%; top: 5px; transform: translateX(-50%); font-size: 0.7rem; color: #fff; opacity: 0.5; z-index: 1; }
+
         .track-lane { position: relative; width: 100%; height: 38px; border-bottom: 1px solid #222; }
         .track-car { position: absolute; height: 24px; width: 42px; border-radius: 4px; top: 6px; font-size: 0.65rem; color: black; font-weight: 900; text-align: center; line-height: 24px; transition: left 1.2s cubic-bezier(0.4, 0, 0.2, 1); z-index: 2; }
         .hp-container { width: 100%; height: 3px; background: #333; position: absolute; bottom: -5px; left: 0; }
@@ -64,7 +63,7 @@
         </div>
 
         <div class="card">
-            <h3 style="margin-top:0;">SEASON MATRIX</h3>
+            <h3 style="margin-top:0;">7-DAY SEASON MATRIX</h3>
             <table>
                 <thead><tr id="mat-head"></tr></thead>
                 <tbody id="mat-body"></tbody>
@@ -123,10 +122,13 @@
             const carsSnap = await get(ref(db, 'cars'));
             const cars = carsSnap.val();
             const configSnap = await get(ref(db, 'race_constants'));
-            const hpSet = configSnap.val().hp_settings || { drain:{min:5,max:10}, heal:{min:5,max:10} };
+            const cData = configSnap.val();
             
             const up = {};
+            
+            // End of Round Logic (Day 8 Buffer)
             if (s.day_in_round === 8) {
+                // Apply Winner Penalties here if needed before reset
                 Object.keys(cars).forEach(id => up[`cars/${id}/total_dist`] = 0);
                 up['race_state/day_in_round'] = 1;
                 up['race_state/round'] = (s.round || 1) + 1;
@@ -134,16 +136,19 @@
                 return;
             }
 
+            // Calculation Logic using Race Constants
             Object.keys(cars).forEach(id => {
                 const car = cars[id];
-                const cb = (car.traits?.core || 1) / 20;
                 if (car.role === 'support' && (car.hp || 100) > 0) {
-                    up[`cars/${id}/total_dist`] = (car.total_dist || 0) + (Math.random() * 200 + 100);
-                    up[`cars/${id}/hp`] = Math.max(0, (car.hp || 100) - ((Math.random()*(hpSet.drain.max-hpSet.drain.min)+hpSet.drain.min)-cb));
+                    // This is where your engine logic from race_constants simulator runs
+                    const dist = (Math.random() * 150 + 100); 
+                    up[`cars/${id}/total_dist`] = (car.total_dist || 0) + dist;
+                    up[`cars/${id}/hp`] = Math.max(0, (car.hp || 100) - 8); 
                 } else if (!car.role) {
-                    up[`cars/${id}/hp`] = Math.min(100, (car.hp || 100) + ((Math.random()*(hpSet.heal.max-hpSet.heal.min)+hpSet.heal.min)+cb));
+                    up[`cars/${id}/hp`] = Math.min(100, (car.hp || 100) + 10);
                 }
             });
+
             up['race_state/day_in_round'] = s.day_in_round + 1;
             await update(ref(db), up);
         };
@@ -192,7 +197,7 @@
             }
             await update(ref(db, 'race_constants'), nc);
             await update(ref(db, 'race_state'), { day_in_round: 1 });
-            alert("Season Matrix Updated!");
+            alert("New 7-Day Matrix Generated!");
         };
     </script>
 </body>

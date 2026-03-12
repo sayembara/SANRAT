@@ -10,12 +10,13 @@
             --border: rgba(255, 255, 255, 0.15);
             --boost-color: #ff4b2b;
             --refill-color: #6dd5ed;
+            --sensor-bg: rgba(0, 255, 204, 0.05);
         }
 
         body {
             margin: 0;
             padding: 40px 20px;
-            font-family: 'Inter', system-ui, -apple-system, sans-serif;
+            font-family: 'Inter', sans-serif;
             background: radial-gradient(circle at top right, #1a1a2e, #0f0c29);
             color: white;
             display: flex;
@@ -24,7 +25,7 @@
         }
 
         .header { text-align: center; margin-bottom: 40px; }
-        .header h1 { font-size: 2.5rem; margin-bottom: 10px; background: linear-gradient(to right, #fff, #888); -webkit-background-clip: text; -webkit-text-fill-color: transparent; }
+        .header h1 { font-size: 2.2rem; margin-bottom: 5px; letter-spacing: 2px; }
 
         .container {
             display: grid;
@@ -32,6 +33,7 @@
             gap: 30px;
             max-width: 900px;
             width: 100%;
+            margin-bottom: 50px;
         }
 
         .card {
@@ -40,13 +42,10 @@
             border: 1px solid var(--border);
             border-radius: 24px;
             padding: 30px;
-            display: flex;
-            flex-direction: column;
             box-shadow: 0 10px 40px rgba(0,0,0,0.4);
         }
 
-        .card h2 { margin: 0 0 15px 0; font-size: 1.4rem; display: flex; align-items: center; gap: 10px; }
-        .remark { font-size: 0.95rem; color: #b0b0b0; line-height: 1.6; margin-bottom: 25px; min-height: 60px; }
+        .remark { font-size: 0.9rem; color: #b0b0b0; line-height: 1.5; margin-bottom: 20px; }
 
         input {
             background: rgba(0, 0, 0, 0.4);
@@ -55,83 +54,89 @@
             border-radius: 12px;
             color: white;
             font-size: 1.1rem;
+            width: calc(100% - 32px);
             margin-bottom: 20px;
-            transition: 0.3s;
         }
-        input:focus { border-color: #fff; background: rgba(0,0,0,0.6); outline: none; }
 
         button {
+            width: 100%;
             padding: 16px;
             border: none;
             border-radius: 12px;
             font-weight: 700;
             cursor: pointer;
-            letter-spacing: 0.5px;
-            transition: all 0.3s ease;
+            transition: 0.3s;
         }
 
-        .btn-boost { background: var(--boost-color); color: white; box-shadow: 0 4px 15px rgba(255, 75, 43, 0.3); }
-        .btn-refill { background: var(--refill-color); color: #00334e; box-shadow: 0 4px 15px rgba(109, 213, 237, 0.3); }
-        button:hover { transform: translateY(-2px); filter: brightness(1.1); }
+        .btn-boost { background: var(--boost-color); color: white; }
+        .btn-refill { background: var(--refill-color); color: #00334e; }
+        button:hover { transform: translateY(-2px); filter: brightness(1.2); }
 
-        /* Bottom Status Area */
-        .vault-status {
-            margin-top: 50px;
+        /* Vault Sensors Section */
+        .sensor-title { width: 100%; max-width: 900px; margin-bottom: 15px; color: #00ffcc; font-weight: bold; text-transform: uppercase; letter-spacing: 1px; }
+        
+        .sensor-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(130px, 1fr));
+            gap: 15px;
+            max-width: 900px;
+            width: 100%;
+            background: rgba(255,255,255,0.02);
+            padding: 20px;
+            border-radius: 20px;
+            border: 1px solid var(--border);
+        }
+
+        .sensor-box {
+            background: var(--sensor-bg);
+            border: 1px solid rgba(0, 255, 204, 0.2);
+            padding: 15px;
+            border-radius: 12px;
+            text-align: center;
+        }
+
+        .sensor-label { font-size: 0.7rem; color: #888; margin-bottom: 5px; }
+        .sensor-val { font-family: monospace; font-size: 1.1rem; color: #00ffcc; }
+
+        .overflow-strip {
+            margin-top: 20px;
             width: 100%;
             max-width: 900px;
-            display: flex;
-            justify-content: space-around;
-            background: rgba(255,255,255,0.03);
-            padding: 20px;
-            border-radius: 15px;
-            border: 1px dashed var(--border);
+            text-align: right;
+            font-family: monospace;
+            color: #ffcc00;
         }
-
-        .status-item { text-align: center; }
-        .status-label { font-size: 0.8rem; color: #888; text-transform: uppercase; margin-bottom: 5px; }
-        .status-value { font-size: 1.5rem; font-family: monospace; font-weight: bold; color: #00ffcc; }
     </style>
 </head>
 <body>
 
     <div class="header">
-        <h1>Funding Ops</h1>
-        <p style="color: #888;">Protocol: Injection & Capital Management</p>
+        <h1>FUNDING OPS</h1>
+        <p style="color: #00ffcc; font-size: 0.8rem; letter-spacing: 4px;">TESTNET PHASE (tBNB)</p>
     </div>
 
     <div class="container">
         <div class="card">
             <h2>🚀 Seasonal Boost</h2>
-            <p class="remark">
-                <strong>Current Season Reward.</strong> Increases payouts for active racers immediately. Use this to drive high engagement during peak hours.
-            </p>
-            <input type="number" id="boostAmount" placeholder="Amount (ETH/BNB)" step="0.01">
+            <p class="remark"><strong>Target: Current Season.</strong> Use this to spike rewards for active racers. Payouts from this bucket are triggered immediately upon round completion.</p>
+            <input type="number" id="boostAmount" placeholder="Amount (tBNB)" step="0.01">
             <button class="btn-boost" onclick="execute('boost')">Execute Injection</button>
         </div>
 
-        <div class="card">
+        <div class="card :refill">
             <h2>🔋 Normal Refill</h2>
-            <p class="remark">
-                <strong>Treasury Maintenance.</strong> Refill the main refill bucket. This ensures the baseline rewards are sustained across multiple rounds.
-            </p>
-            <input type="number" id="refillAmount" placeholder="Amount (ETH/BNB)" step="0.1">
+            <p class="remark"><strong>Target: Refill Treasury.</strong> Standard injection to maintain the baseline reward pool across the entire ecosystem.</p>
+            <input type="number" id="refillAmount" placeholder="Amount (tBNB)" step="0.1">
             <button class="btn-refill" onclick="execute('normal')">Execute Refill</button>
         </div>
     </div>
 
-    <div class="vault-status">
-        <div class="status-item">
-            <div class="status-label">Refill Bucket</div>
-            <div class="status-value" id="val-refill">0.00</div>
+    <div class="sensor-title">📡 Season Vault Sensors</div>
+    <div class="sensor-grid" id="sensorGrid">
         </div>
-        <div class="status-item">
-            <div class="status-label">Boost Bucket</div>
-            <div class="status-value" id="val-boost">0.00</div>
-        </div>
-        <div class="status-item">
-            <div class="status-label">Overflow Amount</div>
-            <div class="status-value" id="val-overflow" style="color: #ffcc00;">0.00</div>
-        </div>
+
+    <div class="overflow-strip">
+        OVERFLOW_RESERVE: <span id="val-overflow">0.000</span> tBNB
     </div>
 
     <script type="module">
@@ -148,28 +153,44 @@
         const app = initializeApp(firebaseConfig);
         const db = getDatabase(app);
 
-        // --- Live Update Buckets ---
-        onValue(ref(db, 'vault/stats'), (snapshot) => {
+        // Generate 12 Sensor Boxes
+        const grid = document.getElementById('sensorGrid');
+        for (let i = 1; i <= 12; i++) {
+            grid.innerHTML += `
+                <div class="sensor-box">
+                    <div class="sensor-label">SEASON ${i}</div>
+                    <div class="sensor-val" id="s${i}-val">0.00</div>
+                </div>
+            `;
+        }
+
+        // --- Live Sync Sensors ---
+        onValue(ref(db, 'vault/seasons'), (snapshot) => {
             const data = snapshot.val() || {};
-            document.getElementById('val-refill').innerText = data.refill_total || "0.00";
-            document.getElementById('val-boost').innerText = data.boost_total || "0.00";
-            document.getElementById('val-overflow').innerText = data.overflow || "0.00";
+            for (let i = 1; i <= 12; i++) {
+                document.getElementById(`s${i}-val`).innerText = data[`s${i}`] || "0.00";
+            }
         });
 
-        // --- Execute Logic ---
+        onValue(ref(db, 'vault/overflow'), (snapshot) => {
+            document.getElementById('val-overflow').innerText = snapshot.val() || "0.000";
+        });
+
+        // --- Execute Injection ---
         window.execute = function(type) {
             const id = type === 'boost' ? 'boostAmount' : 'refillAmount';
             const amount = document.getElementById(id).value;
 
-            if (!amount || amount <= 0) return alert("Enter valid amount");
+            if (!amount || amount <= 0) return alert("Please enter a valid tBNB amount.");
 
             set(ref(db, 'commands/last_action'), {
                 type: type,
                 value: amount,
+                currency: "tBNB",
                 timestamp: serverTimestamp(),
                 status: "pending"
             }).then(() => {
-                alert(`Instruction Sent: ${type.toUpperCase()} injection processed.`);
+                alert(`SUCCESS: ${type.toUpperCase()} command broadcasted.`);
                 document.getElementById(id).value = '';
             });
         };

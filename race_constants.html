@@ -42,7 +42,7 @@
 
         <div class="card">
             <h3>2. Trait Logic & Distance Tables</h3>
-            <div id="tables-container">Synchronizing with Database...</div>
+            <div id="tables-container">Checking Database...</div>
         </div>
 
         <div class="card">
@@ -96,15 +96,29 @@
 
         function loadData() {
             onValue(ref(db, 'race_constants'), (snap) => {
-                const d = snap.val(); if(!d) return;
+                const d = snap.val(); 
+                if(!d || !d.traits) {
+                    renderDefaultTables();
+                    return;
+                }
                 document.getElementById('l1_input').value = d.limits?.l1 ?? 5;
                 document.getElementById('l2_input').value = d.limits?.l2 ?? 15;
                 document.getElementById('hp_drain_min').value = d.hp_settings?.drain?.min ?? 5;
                 document.getElementById('hp_drain_max').value = d.hp_settings?.drain?.max ?? 12;
                 document.getElementById('hp_heal_min').value = d.hp_settings?.heal?.min ?? 8;
                 document.getElementById('hp_heal_max').value = d.hp_settings?.heal?.max ?? 13;
-                if(d.traits) renderTables(d.traits);
+                renderTables(d.traits);
             });
+        }
+
+        function renderDefaultTables() {
+            const def = {
+                propulsion: { straight:[], right:[], left:[] },
+                traction: { dry:[], wet:[] },
+                stability: { flatland:[], uphill:[], downhill:[] },
+                core: { cutoff:[], impact:[] }
+            };
+            renderTables(def);
         }
 
         function renderTables(traits) {
@@ -116,7 +130,10 @@
                 html += `</tr>`;
                 for (let i = 0; i < 10; i++) {
                     html += `<tr><td>${i+1}</td>`;
-                    conds.forEach(c => html += `<td><input type="number" class="engine-val" data-t="${t}" data-c="${c}" data-i="${i}" value="${traits[t][c][i]||0}"></td>`);
+                    conds.forEach(c => {
+                        const val = traits[t][c][i] || 0;
+                        html += `<td><input type="number" class="engine-val" data-t="${t}" data-c="${c}" data-i="${i}" value="${val}"></td>`;
+                    });
                     html += `</tr>`;
                 }
                 html += `</table>`;
@@ -144,11 +161,12 @@
 
         window.runSimulation = async () => {
             const snap = await get(ref(db, 'race_constants'));
-            const d = snap.val().traits;
+            const d = snap.val()?.traits;
+            if(!d) { alert("Save constants first!"); return; }
+
             const L1 = parseInt(document.getElementById('l1_input').value);
             const L2 = parseInt(document.getElementById('l2_input').value);
             const roll = parseInt(document.getElementById('s_roll').value);
-
             const getR = () => (1 - (Math.floor(Math.random() * (L2 - L1 + 1)) + L1) / 100);
             
             const pLv = parseInt(document.getElementById('s_p').value) - 1;
@@ -156,13 +174,13 @@
             const sLv = parseInt(document.getElementById('s_s').value) - 1;
             const cLv = parseInt(document.getElementById('s_c').value) - 1;
 
-            const a1 = d.propulsion[document.getElementById('s_tk').value][pLv] * getR();
-            const a2 = d.traction[document.getElementById('s_gr').value][tLv] * getR();
-            const a3 = d.stability[document.getElementById('s_sl').value][sLv] * getR();
+            const a1 = (d.propulsion[document.getElementById('s_tk').value]?.[pLv] || 0) * getR();
+            const a2 = (d.traction[document.getElementById('s_gr').value]?.[tLv] || 0) * getR();
+            const a3 = (d.stability[document.getElementById('s_sl').value]?.[sLv] || 0) * getR();
             
-            const cutoff = d.core.cutoff[cLv];
+            const cutoff = d.core.cutoff?.[cLv] || 100;
             let a4 = 0;
-            if (roll > cutoff) a4 = d.core.impact[cLv] * getR();
+            if (roll > cutoff) a4 = (d.core.impact?.[cLv] || 0) * getR();
 
             const total = (a1 + a2 + a3) * (1 - a4/100);
 
@@ -171,9 +189,7 @@
                 `A1 (Prop): ${a1.toFixed(1)}m\n` +
                 `A2 (Trac): ${a2.toFixed(1)}m\n` +
                 `A3 (Stab): ${a3.toFixed(1)}m\n` +
-                `A4 (Core Reduction): ${a4.toFixed(1)}%\n` +
-                `Dice: ${roll} vs Cutoff: ${cutoff}\n` +
-                `----------------------------\n` +
+                `A4 (Core Reduction): ${a4.toFixed(1)}%\n\n` +
                 `TOTAL DISTANCE: ${total.toFixed(2)}m`;
         };
     </script>

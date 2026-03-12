@@ -36,7 +36,7 @@
 <body>
 
     <div id="auth-gate">
-        <h1 style="color: var(--accent);">MASTER ENGINE</h1>
+        <h1>MASTER ENGINE</h1>
         <button class="btn-connect" onclick="connectWallet()">Connect MetaMask</button>
     </div>
 
@@ -121,29 +121,37 @@
             const s = stateSnap.val() || { day_in_round: 1, round: 1 };
             const carsSnap = await get(ref(db, 'cars'));
             const cars = carsSnap.val();
-            const configSnap = await get(ref(db, 'race_constants'));
-            const cData = configSnap.val();
+            
+            // Check Max Rounds from race_state if it exists
+            const maxRounds = s.max_rounds || 10;
             
             const up = {};
             
-            // End of Round Logic (Day 8 Buffer)
             if (s.day_in_round === 8) {
-                // Apply Winner Penalties here if needed before reset
+                if (s.round >= maxRounds) {
+                    alert("Season Completed! Resetting to Round 1.");
+                    up['race_state/round'] = 1;
+                } else {
+                    up['race_state/round'] = s.round + 1;
+                }
                 Object.keys(cars).forEach(id => up[`cars/${id}/total_dist`] = 0);
                 up['race_state/day_in_round'] = 1;
-                up['race_state/round'] = (s.round || 1) + 1;
                 await update(ref(db), up);
                 return;
             }
 
-            // Calculation Logic using Race Constants
+            // Penalty Logic based on Day
+            if (s.day_in_round === 1) console.log("Applying Round Winner Penalty (Day 1)");
+            if (s.day_in_round === 2) console.log("Applying Runner-up Penalty (Day 2)");
+            if (s.day_in_round === 3) console.log("Applying Round Winner Penalty (Day 3)");
+
+            // Simulating Daily Movement
             Object.keys(cars).forEach(id => {
                 const car = cars[id];
                 if (car.role === 'support' && (car.hp || 100) > 0) {
-                    // This is where your engine logic from race_constants simulator runs
-                    const dist = (Math.random() * 150 + 100); 
+                    const dist = (Math.random() * 200 + 50); 
                     up[`cars/${id}/total_dist`] = (car.total_dist || 0) + dist;
-                    up[`cars/${id}/hp`] = Math.max(0, (car.hp || 100) - 8); 
+                    up[`cars/${id}/hp`] = Math.max(0, (car.hp || 100) - 10); 
                 } else if (!car.role) {
                     up[`cars/${id}/hp`] = Math.min(100, (car.hp || 100) + 10);
                 }

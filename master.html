@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <title>SANRAT | Master System Reset</title>
+    <title>SANRAT | Master System Control</title>
     <style>
         :root { --glass: rgba(255, 255, 255, 0.08); --accent: #00ffcc; --danger: #ff4b2b; --gold: #ffcc00; }
         body { margin: 0; padding: 20px; font-family: 'Inter', sans-serif; background: #050510; color: white; display: flex; flex-direction: column; align-items: center; min-height: 100vh; }
@@ -26,7 +26,7 @@
         
         .sensor-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 12px; width: 100%; margin-top: 20px; }
         .sensor-box { background: var(--glass); border: 1px solid rgba(255,255,255,0.1); padding: 15px; border-radius: 15px; text-align: center; }
-        .active-round { border: 2px solid var(--accent); background: rgba(0, 255, 204, 0.1); }
+        .active-round { border: 2px solid var(--accent); background: rgba(0, 255, 204, 0.1); transform: scale(1.03); }
         .past-round { opacity: 0.25; filter: grayscale(1); }
         
         #transition-log { width: 100%; background: rgba(0,0,0,0.3); border-radius: 15px; padding: 15px; margin-top: 30px; font-size: 0.85rem; border: 1px solid rgba(255,255,255,0.05); }
@@ -49,21 +49,21 @@
             <div class="controls">
                 <button class="btn-force" id="nextRoundBtn">NEXT ROUND</button>
                 <button class="btn-reset" id="resetRoundBtn">RESET ROUND</button>
-                <button class="btn-hard-wipe" id="hardWipeBtn">🚨 WIPE ALL (S1 R1)</button>
+                <button class="btn-hard-wipe" id="hardWipeBtn">🚨 HARD WIPE (S1 R1)</button>
             </div>
         </div>
 
         <div class="sensor-grid" id="sensorGrid"></div>
 
         <div id="transition-log">
-            <h4 style="margin:0 0 10px 0; color:#888;">SEASON TRANSITION LOGS</h4>
+            <h4 style="margin:0 0 10px 0; color:#888;">HISTORY & TRANSITION LOGS</h4>
             <div id="log-content"><i>No records...</i></div>
         </div>
     </div>
 
     <script type="module">
         import { initializeApp } from "https://www.gstatic.com/firebasejs/9.6.1/firebase-app.js";
-        import { getDatabase, ref, onValue, update, get, set, remove } from "https://www.gstatic.com/firebasejs/9.6.1/firebase-database.js";
+        import { getDatabase, ref, onValue, update, get, set, remove, push } from "https://www.gstatic.com/firebasejs/9.6.1/firebase-database.js";
 
         const WHITELISTED_ADMIN = "0xCe9782f77eC560a1Cb329F935b5D416AA41f1a5d".toLowerCase(); 
         const firebaseConfig = { apiKey: "AlzaSyBYxLOGFzaHN6CS4ro_bjnKEblbQE6Vtx4", databaseURL: "https://nuclearf1-94a6b-default-rtdb.asia-southeast1.firebasedatabase.app" };
@@ -108,20 +108,68 @@
                 const entries = Object.values(history).reverse();
                 logBox.innerHTML = entries.length > 0 ? entries.map(e => `
                     <div class="log-entry">
-                        <span><b>S${e.from_season} ➔ S${e.to_season}</b>: Moved ${e.moved_from_overflow} tBNB</span>
+                        <span><b>S${e.from_season} ➔ S${e.to_season}</b>: Reclaimed ${e.moved_from_overflow} tBNB</span>
                         <span style="color:#666;">${e.timestamp}</span>
                     </div>`).join('') : '<i>No records...</i>';
             });
 
-            // Hard Wipe Logic
+            async function triggerSeasonTransition(oldSeason) {
+                const snap = await get(ref(db));
+                const data = snap.val() || {};
+                const limits = data.master_settings?.limits || { min: 0.1, max: 2.0 };
+                const oldVault = data.vault || {};
+                
+                let currentOverflow = parseFloat(oldVault.overflow || 0);
+                let startOverflow = currentOverflow;
+                let newRounds = {};
+                let finalStateRecord = {};
+
+                for(let i=1; i<=12; i++) {
+                    let r = oldVault.rounds?.[`r${i}`] || { normal: 0, boost: 0 };
+                    finalStateRecord[`r${i}`] = { normal: r.normal, boost: r.boost, total: (parseFloat(r.normal) + parseFloat(r.boost)).toFixed(3) };
+
+                    newRounds[`r${i}`] = { normal: 0, boost: 0 };
+                    let fillAmt = Math.min(currentOverflow, limits.max);
+                    newRounds[`r${i}`].normal = parseFloat(fillAmt.toFixed(3));
+                    currentOverflow -= fillAmt; // This reduces the overflow balance
+                }
+
+                const historyEntry = {
+                    from_season: oldSeason,
+                    to_season: oldSeason + 1,
+                    moved_from_overflow: (startOverflow - currentOverflow).toFixed(3),
+                    final_vault_state: finalStateRecord,
+                    timestamp: new Date().toLocaleString()
+                };
+
+                await push(ref(db, 'history/transitions'), historyEntry);
+                await update(ref(db, 'race_data'), { current_round: 1, current_season: oldSeason + 1 });
+                await update(ref(db, 'vault'), { rounds: newRounds, overflow: parseFloat(currentOverflow.toFixed(3)) });
+                alert("Season Roll-over Complete. Overflow updated.");
+            }
+
+            document.getElementById('nextRoundBtn').onclick = async () => {
+                const snap = await get(ref(db, 'race_data'));
+                const race = snap.val() || { current_round: 1, current_season: 1 };
+                if (race.current_round >= 12) {
+                    if(confirm("Round 12 complete. Roll over to Season " + (race.current_season + 1) + "?")) {
+                        triggerSeasonTransition(race.current_season);
+                    }
+                } else {
+                    update(ref(db, 'race_data'), { current_round: race.current_round + 1 });
+                }
+            };
+
             document.getElementById('hardWipeBtn').onclick = async () => {
-                if(!confirm("⚠️ DANGER: This will wipe all History, reset to Season 1 Round 1, and re-allocate existing funds to Normal buckets. Proceed?")) return;
+                const pass = prompt("Enter MASTER PASSWORD to perform Hard Wipe:");
+                if (pass !== "ADMIN123") return alert("Wrong password."); // Change ADMIN123 to your choice
+                
+                if(!confirm("⚠️ FINAL WARNING: Wipe History and Reset to S1 R1?")) return;
                 
                 const snap = await get(ref(db));
                 const data = snap.val() || {};
                 const limits = data.master_settings?.limits || { min: 0.1, max: 2.0 };
                 
-                // Calculate current total liquidity (Normal + Boost + Overflow)
                 let totalPool = parseFloat(data.vault?.overflow || 0);
                 if(data.vault?.rounds) {
                     Object.values(data.vault.rounds).forEach(r => {
@@ -129,7 +177,6 @@
                     });
                 }
 
-                // Redistribute everything into Normal buckets first
                 let remaining = totalPool;
                 let newRounds = {};
                 for(let i=1; i<=12; i++) {
@@ -138,25 +185,14 @@
                     remaining -= fill;
                 }
 
-                // Apply Hard Reset
-                await remove(ref(db, 'history')); // Wipe Black Box
+                await remove(ref(db, 'history'));
                 await update(ref(db, 'race_data'), { current_round: 1, current_season: 1 });
                 await update(ref(db, 'vault'), { rounds: newRounds, overflow: parseFloat(remaining.toFixed(3)) });
-                
-                alert("System Hard Reset to S1 R1. History cleared. Liquidity re-allocated.");
-            };
-
-            document.getElementById('nextRoundBtn').onclick = async () => {
-                const snap = await get(ref(db, 'race_data'));
-                const race = snap.val() || { current_round: 1, current_season: 1 };
-                update(ref(db, 'race_data'), { 
-                    current_round: race.current_round >= 12 ? 1 : race.current_round + 1,
-                    current_season: race.current_round >= 12 ? race.current_season + 1 : race.current_season
-                });
+                alert("Hard Reset Successful.");
             };
 
             document.getElementById('resetRoundBtn').onclick = () => {
-                update(ref(db, 'race_data'), { current_round: 1 });
+                if(confirm("Reset to Round 1?")) update(ref(db, 'race_data'), { current_round: 1 });
             };
         }
     </script>

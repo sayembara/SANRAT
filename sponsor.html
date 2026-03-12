@@ -25,14 +25,19 @@
         .sensor-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 12px; width: 100%; }
         .sensor-box { background: rgba(255,255,255,0.03); border: 1px solid rgba(255,255,255,0.1); padding: 12px; border-radius: 12px; text-align: center; }
         
+        /* Expandable History */
+        .history-header { display: flex; justify-content: space-between; align-items: center; cursor: pointer; user-select: none; }
+        .history-content { display: none; margin-top: 15px; border-top: 1px solid rgba(255,255,255,0.1); padding-top: 10px; }
+        .history-list { text-align: left; max-height: 200px; overflow-y: auto; }
+        .log-entry { display: flex; justify-content: space-between; padding: 8px 0; border-bottom: 1px solid rgba(255,255,255,0.05); align-items: center; }
+        .toggle-arrow { transition: transform 0.3s; }
+        .active .toggle-arrow { transform: rotate(180deg); }
+
         /* Modal Style */
         #historyModal { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.9); z-index: 100; justify-content: center; align-items: center; }
         .modal-content { background: #1a1a2e; border: 1px solid var(--accent); padding: 30px; border-radius: 20px; width: 90%; max-width: 500px; }
         table { width: 100%; border-collapse: collapse; margin-top: 15px; font-size: 0.8rem; }
         th, td { border: 1px solid rgba(255,255,255,0.1); padding: 6px; text-align: center; }
-        
-        .history-list { text-align: left; max-height: 150px; overflow-y: auto; }
-        .log-entry { display: flex; justify-content: space-between; padding: 8px 0; border-bottom: 1px solid rgba(255,255,255,0.05); align-items: center; }
     </style>
 </head>
 <body>
@@ -59,12 +64,17 @@
 
         <div class="sensor-grid" id="sensorGrid"></div>
 
-        <div class="card" style="text-align: left;">
-            <h4 style="margin: 0 0 10px 0; color: #888;">SEASON HISTORY</h4>
-            <div id="history-list" class="history-list"><i>Loading...</i></div>
+        <div class="card" id="historyCard">
+            <div class="history-header" id="toggleHistory">
+                <h4 style="margin:0; color: #888;">SEASON HISTORY LOGS</h4>
+                <span class="toggle-arrow">▼</span>
+            </div>
+            <div class="history-content" id="historyContent">
+                <div id="history-list" class="history-list"><i>Loading...</i></div>
+            </div>
         </div>
 
-        <button class="btn-wipe" id="btnWipe">🚨 WIPE ALL ROUNDS (Sponsor Clean)</button>
+        <button class="btn-wipe" id="btnWipe">🚨 WIPE ALL ROUNDS</button>
     </div>
 
     <div id="historyModal">
@@ -84,6 +94,15 @@
         const app = initializeApp(firebaseConfig);
         const db = getDatabase(app);
 
+        // UI Interactions
+        document.getElementById('toggleHistory').onclick = () => {
+            const content = document.getElementById('historyContent');
+            const card = document.getElementById('historyCard');
+            const isVisible = content.style.display === 'block';
+            content.style.display = isVisible ? 'none' : 'block';
+            card.classList.toggle('active', !isVisible);
+        };
+
         document.getElementById('connectBtn').onclick = async () => {
             if (window.ethereum) {
                 const accounts = await window.ethereum.request({ method: 'eth_requestAccounts' });
@@ -100,7 +119,6 @@
                 const data = snap.val() || {};
                 const vault = data.vault || {};
                 const limits = data.master_settings?.limits || { min: 0.1, max: 2.0 };
-                const curRound = data.race_data?.current_round || 1;
                 const history = data.history?.transitions || {};
 
                 document.getElementById('curLimits').innerText = `CURRENT: MIN ${limits.min} | MAX ${limits.max}`;
@@ -122,25 +140,24 @@
                 const entries = Object.entries(history).reverse();
                 histList.innerHTML = entries.length > 0 ? entries.map(([id, e]) => `
                     <div class="log-entry">
-                        <span>Season ${e.from_season} <small style="color:#555; margin-left:10px;">${e.timestamp}</small></span>
+                        <span>Season ${e.from_season} <small style="color:#666; margin-left:10px;">${e.timestamp}</small></span>
                         <button class="btn-view" onclick="window.showDetails('${id}')">DETAILS</button>
                     </div>`).join('') : '<i>No records found.</i>';
 
                 window.showDetails = (id) => {
                     const record = history[id];
                     const states = record.final_vault_state;
-                    document.getElementById('modalTitle').innerText = `Season ${record.from_season} Data`;
+                    document.getElementById('modalTitle').innerText = `Season ${record.from_season} Summary`;
                     let table = `<table><tr><th>RD</th><th>Norm</th><th>Boost</th></tr>`;
                     for(let i=1; i<=12; i++) {
                         let rd = states[`r${i}`];
                         table += `<tr><td>${i}</td><td>${parseFloat(rd.normal).toFixed(2)}</td><td>${parseFloat(rd.boost).toFixed(2)}</td></tr>`;
                     }
-                    document.getElementById('modalBody').innerHTML = table + `</table>`;
+                    document.getElementById('modalBody').innerHTML = table + `</table><p style="font-size:0.75rem; color:var(--gold); margin-top:10px;">Overflow Reclaimed: ${record.moved_from_overflow} tBNB</p>`;
                     document.getElementById('historyModal').style.display = 'flex';
                 };
             });
 
-            // Original Control Button Logic
             document.getElementById('btnMin').onclick = () => update(ref(db, 'master_settings/limits'), { min: parseFloat(document.getElementById('minIn').value) });
             document.getElementById('btnMax').onclick = () => update(ref(db, 'master_settings/limits'), { max: parseFloat(document.getElementById('maxIn').value) });
             document.getElementById('btnWipe').onclick = () => confirm("Wipe all round funds?") && set(ref(db, 'vault/rounds'), {});

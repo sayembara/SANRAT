@@ -154,6 +154,19 @@
         const app = initializeApp(firebaseConfig);
         const db = getDatabase(app);
 
+import { getAuth, signInAnonymously } from "https://www.gstatic.com/firebasejs/9.6.1/firebase-auth.js";
+
+const auth = getAuth(app);
+
+// Automatically sign in so the user has permission to write to the DB
+signInAnonymously(auth)
+  .then(() => {
+    console.log("Authenticated Anonymously - Permissions Active");
+  })
+  .catch((error) => {
+    console.error("Auth Error:", error.code, error.message);
+  });
+        
         // Explicitly attach to window so HTML onclick can find it
         window.execute = function(type) {
             console.log("Executing:", type);

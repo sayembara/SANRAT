@@ -8,25 +8,19 @@
     <style>
         :root { --glass: rgba(255, 255, 255, 0.08); --accent: #00ffcc; --gold: #ffcc00; --danger: #ff4b2b; --bg: #0b0e14; }
         body { margin: 0; padding: 20px; font-family: 'Inter', sans-serif; background: var(--bg); color: white; display: flex; flex-direction: column; align-items: center; }
-        
         #auth-gate { position: fixed; inset: 0; background: var(--bg); z-index: 999; display: flex; flex-direction: column; justify-content: center; align-items: center; text-align: center; }
         .btn-connect { background: #f6851b; color: white; padding: 15px 40px; font-size: 1.2rem; border-radius: 50px; border: none; cursor: pointer; font-weight: bold; }
-
         #admin-ui { width: 100%; max-width: 1300px; display: none; grid-template-columns: 350px 1fr; gap: 20px; }
         .card { background: var(--glass); border: 1px solid rgba(255,255,255,0.1); border-radius: 15px; padding: 20px; }
         .full-width { grid-column: 1 / -1; }
-        
         .status-tag { background: var(--accent); color: #000; padding: 4px 12px; border-radius: 4px; font-weight: bold; margin-left: 5px; }
         .btn-master { padding: 12px 20px; border-radius: 8px; border: none; font-weight: bold; cursor: pointer; transition: 0.2s; }
-        
         table { width: 100%; border-collapse: collapse; margin-top: 10px; font-size: 0.75rem; }
         th, td { border: 1px solid #333; padding: 12px; text-align: center; }
         .active-day-col { background: rgba(255, 75, 43, 0.2) !important; border: 2px solid var(--danger) !important; }
-
         .track-box { background: #000; height: 450px; position: relative; border-radius: 10px; border: 1px solid #444; overflow-y: auto; overflow-x: hidden; padding-top: 10px; }
         .finish-line { position: absolute; left: 50%; top: 0; bottom: 0; width: 2px; border-left: 2px dashed rgba(255,255,255,0.4); z-index: 1; }
         .finish-label { position: absolute; left: 50%; top: 5px; transform: translateX(-50%); font-size: 0.7rem; color: #fff; opacity: 0.5; z-index: 1; }
-
         .track-lane { position: relative; width: 100%; height: 38px; border-bottom: 1px solid #222; }
         .track-car { position: absolute; height: 24px; width: 42px; border-radius: 4px; top: 6px; font-size: 0.65rem; color: black; font-weight: 900; text-align: center; line-height: 24px; transition: left 1.2s cubic-bezier(0.4, 0, 0.2, 1); z-index: 2; }
         .hp-container { width: 100%; height: 3px; background: #333; position: absolute; bottom: -5px; left: 0; }
@@ -34,61 +28,42 @@
     </style>
 </head>
 <body>
-
-    <div id="auth-gate">
-        <h1>MASTER ENGINE</h1>
-        <button class="btn-connect" onclick="connectWallet()">Connect MetaMask</button>
-    </div>
-
+    <div id="auth-gate"><h1>MASTER ENGINE</h1><button class="btn-connect" onclick="connectWallet()">Connect MetaMask</button></div>
     <div id="admin-ui">
         <div class="card full-width" style="display:flex; justify-content:space-between; align-items:center;">
             <div>
-                ROUND: <span id="roundNum" class="status-tag">-</span>
+                SEASON: <span id="seasonNum" class="status-tag">1</span>
+                ROUND: <span id="roundNum" class="status-tag">1</span>
                 <span id="dayLabel" style="margin-left:25px; font-weight: 800;">DAY 1</span>
             </div>
             <div style="display: flex; gap: 10px;">
-                <button class="btn-master" style="background:var(--accent);" onclick="generateSeason()">GENERATE SEASON</button>
+                <button class="btn-master" style="background:var(--accent);" onclick="generateSeason()">FORCE NEW MATRIX</button>
                 <button id="nextBtn" class="btn-master" style="background:white;" onclick="triggerTick()">NEXT DAY</button>
-                <button id="endRoundBtn" class="btn-master" style="background:var(--danger); color:white;" onclick="runToEndOfRound()">FAST END</button>
                 <button class="btn-master" style="background:#555; color:white;" onclick="window.location.href='race_constants.html'">CONFIG</button>
             </div>
         </div>
-
         <div class="card">
             <h3 style="margin-top:0; color:var(--gold);">RANKINGS</h3>
-            <table>
-                <thead><tr><th>Rank</th><th>Unit</th><th>Dist</th></tr></thead>
-                <tbody id="rankBody"></tbody>
-            </table>
+            <table><thead><tr><th>Rank</th><th>Unit</th><th>Dist</th></tr></thead><tbody id="rankBody"></tbody></table>
         </div>
-
         <div class="card">
-            <h3 style="margin-top:0;">7-DAY SEASON MATRIX</h3>
-            <table>
-                <thead><tr id="mat-head"></tr></thead>
-                <tbody id="mat-body"></tbody>
-            </table>
+            <h3 style="margin-top:0;">ROUND MATRIX (AUTO-GEN)</h3>
+            <table><thead><tr id="mat-head"></tr></thead><tbody id="mat-body"></tbody></table>
         </div>
-
         <div class="card full-width">
-            <div class="track-box">
-                <div class="finish-line"></div>
-                <div class="finish-label">1000m</div>
-                <div id="master-layer"></div>
-            </div>
+            <div class="track-box"><div class="finish-line"></div><div class="finish-label">1000m</div><div id="master-layer"></div></div>
         </div>
     </div>
 
     <script type="module">
         import { initializeApp } from "https://www.gstatic.com/firebasejs/9.6.1/firebase-app.js";
         import { getDatabase, ref, update, onValue, get } from "https://www.gstatic.com/firebasejs/9.6.1/firebase-database.js";
-
         const firebaseConfig = { apiKey: "AlzaSyBYxLOGFzaHN6CS4ro_bjnKEblbQE6Vtx4", databaseURL: "https://nuclearf1-94a6b-default-rtdb.asia-southeast1.firebasedatabase.app" };
         const app = initializeApp(firebaseConfig);
         const db = getDatabase(app);
-
         const ADMIN_WALLET = "0xCe9782f77eC560a1Cb329F935b5D416AA41f1a5d".toLowerCase();
         const icons = { straight:"➡️", right:"⤴️", left:"⤵️", flatland:"➖", uphill:"🔼", downhill:"🔽", dry:"☀️", wet:"🌧️" };
+        let lastKnownRound = 0;
 
         window.connectWallet = async () => {
             if (window.ethereum) {
@@ -100,90 +75,65 @@
             }
         };
 
+        window.generateSeason = async () => {
+            const d=["straight","right","left"], e=["flatland","uphill","downhill"], nc={direction:[],elevation:[],humidity:[],weather:[]};
+            for(let i=0; i<7; i++) {
+                nc.direction.push(d[Math.floor(Math.random()*3)]); 
+                nc.elevation.push(e[Math.floor(Math.random()*3)]);
+                nc.humidity.push(Math.floor(Math.random()*101)); 
+                nc.weather.push(nc.humidity[i]<50?"dry":"wet");
+            }
+            await update(ref(db, 'race_constants'), nc);
+            return nc;
+        };
+
+        onValue(ref(db, 'race_state'), async snap => {
+            const s = snap.val() || { day_in_round: 1, round: 1, season: 1 };
+            document.getElementById('seasonNum').innerText = s.season || 1;
+            document.getElementById('roundNum').innerText = s.round || 1;
+            
+            // Auto-randomize Matrix if a new round has started
+            if (s.round !== lastKnownRound && s.day_in_round === 1) {
+                lastKnownRound = s.round;
+                await generateSeason();
+            }
+
+            const lbl = document.getElementById('dayLabel');
+            lbl.innerText = s.day_in_round === 8 ? "🏁 RESULTS" : `DAY ${s.day_in_round}`;
+            syncMatrix(s.day_in_round);
+        });
+
         async function syncMatrix(activeDay) {
             const cSnap = await get(ref(db, 'race_constants'));
             const c = cSnap.val();
             if(!c || !c.direction) return;
             let h = '<th>Condition</th>';
-            for(let i=1; i<=7; i++) h += `<th class="${i===activeDay?'active-day-col':''}">Day ${i}</th>`;
+            for(let i=1; i<=7; i++) h += `<th class="${i===activeDay?'active-day-col':''}">D${i}</th>`;
             document.getElementById('mat-head').innerHTML = h;
-            const rows = [
-                {l:"Direction",d:c.direction,i:true},
-                {l:"Elevation",d:c.elevation,i:true},
-                {l:"Humidity",d:c.humidity,s:"%"},
-                {l:"Weather",d:c.weather,i:true}
-            ];
+            const rows = [{l:"Direction",d:c.direction,i:true},{l:"Elevation",d:c.elevation,i:true},{l:"Humidity",d:c.humidity,s:"%"},{l:"Weather",d:c.weather,i:true}];
             document.getElementById('mat-body').innerHTML = rows.map(r => `<tr><td><b>${r.l}</b></td>${r.d.map((v,idx)=>`<td class="${idx+1===activeDay?'active-day-col':''}">${r.i?icons[v]:v+(r.s||'')}</td>`).join('')}</tr>`).join('');
         }
 
         window.triggerTick = async () => {
-            const stateSnap = await get(ref(db, 'race_state'));
-            const s = stateSnap.val() || { day_in_round: 1, round: 1 };
-            const carsSnap = await get(ref(db, 'cars'));
-            const cars = carsSnap.val();
-            
-            // Check Max Rounds from race_state if it exists
-            const maxRounds = s.max_rounds || 10;
-            
+            const s = (await get(ref(db, 'race_state'))).val() || { day_in_round: 1, round: 1, season: 1 };
             const up = {};
-            
             if (s.day_in_round === 8) {
-                if (s.round >= maxRounds) {
-                    alert("Season Completed! Resetting to Round 1.");
+                const maxR = s.max_rounds || 10;
+                if (s.round >= maxR) {
+                    up['race_state/season'] = (s.season || 1) + 1;
                     up['race_state/round'] = 1;
                 } else {
                     up['race_state/round'] = s.round + 1;
                 }
-                Object.keys(cars).forEach(id => up[`cars/${id}/total_dist`] = 0);
                 up['race_state/day_in_round'] = 1;
-                await update(ref(db), up);
-                return;
+                const cars = (await get(ref(db, 'cars'))).val();
+                Object.keys(cars).forEach(id => up[`cars/${id}/total_dist`] = 0);
+            } else {
+                up['race_state/day_in_round'] = s.day_in_round + 1;
+                // Move cars logic here...
             }
-
-            // Penalty Logic based on Day
-            if (s.day_in_round === 1) console.log("Applying Round Winner Penalty (Day 1)");
-            if (s.day_in_round === 2) console.log("Applying Runner-up Penalty (Day 2)");
-            if (s.day_in_round === 3) console.log("Applying Round Winner Penalty (Day 3)");
-
-            // Simulating Daily Movement
-            Object.keys(cars).forEach(id => {
-                const car = cars[id];
-                if (car.role === 'support' && (car.hp || 100) > 0) {
-                    const dist = (Math.random() * 200 + 50); 
-                    up[`cars/${id}/total_dist`] = (car.total_dist || 0) + dist;
-                    up[`cars/${id}/hp`] = Math.max(0, (car.hp || 100) - 10); 
-                } else if (!car.role) {
-                    up[`cars/${id}/hp`] = Math.min(100, (car.hp || 100) + 10);
-                }
-            });
-
-            up['race_state/day_in_round'] = s.day_in_round + 1;
             await update(ref(db), up);
         };
-
-        window.runToEndOfRound = async () => {
-            for(let i=0; i<8; i++) {
-                const s = (await get(ref(db, 'race_state'))).val();
-                if(s.day_in_round === 8) break;
-                await triggerTick();
-                await new Promise(r => setTimeout(r, 600));
-            }
-        };
-
-        onValue(ref(db, 'race_state'), snap => {
-            const s = snap.val() || { day_in_round: 1 };
-            document.getElementById('roundNum').innerText = s.round || 1;
-            const lbl = document.getElementById('dayLabel');
-            const btn = document.getElementById('nextBtn');
-            if(s.day_in_round === 8) {
-                lbl.innerText = "🏁 FINAL RESULTS"; lbl.style.color = "var(--gold)";
-                btn.innerText = "WARP ROUND"; btn.style.background = "var(--danger)"; btn.style.color = "white";
-            } else {
-                lbl.innerText = `DAY ${s.day_in_round}`; lbl.style.color = "var(--danger)";
-                btn.innerText = "NEXT DAY"; btn.style.background = "white"; btn.style.color = "black";
-            }
-            syncMatrix(s.day_in_round);
-        });
 
         onValue(ref(db, 'cars'), snap => {
             const list = Object.values(snap.val() || {}).sort((a,b) => (b.total_dist||0) - (a.total_dist||0));
@@ -196,17 +146,6 @@
                 }
             });
         });
-
-        window.generateSeason = async () => {
-            const d=["straight","right","left"], e=["flatland","uphill","downhill"], nc={direction:[],elevation:[],humidity:[],weather:[]};
-            for(let i=0; i<7; i++) {
-                nc.direction.push(d[Math.floor(Math.random()*3)]); nc.elevation.push(e[Math.floor(Math.random()*3)]);
-                nc.humidity.push(Math.floor(Math.random()*101)); nc.weather.push(nc.humidity[i]<50?"dry":"wet");
-            }
-            await update(ref(db, 'race_constants'), nc);
-            await update(ref(db, 'race_state'), { day_in_round: 1 });
-            alert("New 7-Day Matrix Generated!");
-        };
     </script>
 </body>
 </html>

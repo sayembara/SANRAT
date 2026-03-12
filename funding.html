@@ -139,84 +139,74 @@
         OVERFLOW_RESERVE: <span id="val-overflow">0.000</span> tBNB
     </div>
 
-    <script type="module">
-        import { initializeApp } from "https://www.gstatic.com/firebasejs/9.6.1/firebase-app.js";
-        import { getDatabase, ref, set, onValue, serverTimestamp } from "https://www.gstatic.com/firebasejs/9.6.1/firebase-database.js";
+<script type="module">
+    import { initializeApp } from "https://www.gstatic.com/firebasejs/9.6.1/firebase-app.js";
+    import { getDatabase, ref, set, onValue, serverTimestamp } from "https://www.gstatic.com/firebasejs/9.6.1/firebase-database.js";
+    import { getAuth, signInAnonymously } from "https://www.gstatic.com/firebasejs/9.6.1/firebase-auth.js";
 
-        // --- PASTE YOUR ACTUAL CONFIG HERE ---
-        const firebaseConfig = {
-            apiKey: "YOUR_API_KEY",
-            authDomain: "nuclearf1-94a6b.firebaseapp.com",
-            databaseURL: "https://nuclearf1-94a6b-default-rtdb.asia-southeast1.firebasedatabase.app",
-            projectId: "nuclearf1-94a6b"
-        };
+    const firebaseConfig = {
+        apiKey: "AlzaSyBYxLOGFzaHN6CS4ro_bjnKEblbQE6Vtx4", // Verified from your screenshot
+        authDomain: "nuclearf1-94a6b.firebaseapp.com",
+        databaseURL: "https://nuclearf1-94a6b-default-rtdb.asia-southeast1.firebasedatabase.app",
+        projectId: "nuclearf1-94a6b"
+    };
 
-        const app = initializeApp(firebaseConfig);
-        const db = getDatabase(app);
+    const app = initializeApp(firebaseConfig);
+    const db = getDatabase(app);
+    const auth = getAuth(app);
 
-import { getAuth, signInAnonymously } from "https://www.gstatic.com/firebasejs/9.6.1/firebase-auth.js";
+    // 1. SILENT LOGIN TO UNLOCK PERMISSIONS
+    signInAnonymously(auth).then(() => console.log("Vault Access Granted")).catch(e => console.error("Auth Fail:", e));
 
-const auth = getAuth(app);
+    // 2. EXERT COMMANDS
+    window.execute = function(type) {
+        const inputId = type === 'boost' ? 'boostAmount' : 'refillAmount';
+        const amount = document.getElementById(inputId).value;
 
-// Automatically sign in so the user has permission to write to the DB
-signInAnonymously(auth)
-  .then(() => {
-    console.log("Authenticated Anonymously - Permissions Active");
-  })
-  .catch((error) => {
-    console.error("Auth Error:", error.code, error.message);
-  });
+        if (!amount || amount <= 0) return alert("Please enter a valid tBNB amount.");
+
+        console.log(`Executing ${type}...`);
         
-        // Explicitly attach to window so HTML onclick can find it
-        window.execute = function(type) {
-            console.log("Executing:", type);
-            const inputId = type === 'boost' ? 'boostAmount' : 'refillAmount';
-            const amount = document.getElementById(inputId).value;
+        set(ref(db, 'commands/last_action'), {
+            type: type,
+            value: amount,
+            currency: "tBNB",
+            timestamp: serverTimestamp(),
+            status: "pending"
+        }).then(() => {
+            alert(`SUCCESS: ${type.toUpperCase()} broadcasted!`);
+            document.getElementById(inputId).value = '';
+        }).catch(err => {
+            console.error("Write Failed:", err);
+            alert("Permission Denied. Check Firebase Rules!");
+        });
+    };
 
-            if (!amount || amount <= 0) {
-                alert("Please enter a valid tBNB amount.");
-                return;
-            }
+    // 3. RENDER 12 ROUND SENSORS
+    const grid = document.getElementById('sensorGrid');
+    grid.innerHTML = '';
+    for (let i = 1; i <= 12; i++) {
+        grid.innerHTML += `
+            <div class="sensor-box">
+                <div class="sensor-label">ROUND ${i}</div>
+                <div class="sensor-val" id="r${i}-val">0.00</div>
+            </div>
+        `;
+    }
 
-            set(ref(db, 'commands/last_action'), {
-                type: type,
-                value: amount,
-                currency: "tBNB",
-                timestamp: serverTimestamp(),
-                status: "pending"
-            }).then(() => {
-                alert(`SUCCESS: ${type.toUpperCase()} command sent.`);
-                document.getElementById(inputId).value = '';
-            }).catch(err => {
-                console.error(err);
-                alert("Error: Check console.");
-            });
-        };
-
-        // Generate 12 Round Boxes
-        const grid = document.getElementById('sensorGrid');
+    // 4. LIVE SYNC
+    onValue(ref(db, 'vault/rounds'), (snap) => {
+        const d = snap.val() || {};
         for (let i = 1; i <= 12; i++) {
-            grid.innerHTML += `
-                <div class="sensor-box">
-                    <div class="sensor-label">ROUND ${i}</div>
-                    <div class="sensor-val" id="r${i}-val">0.00</div>
-                </div>
-            `;
+            const el = document.getElementById(`r${i}-val`);
+            if(el) el.innerText = d[`r${i}`] || "0.00";
         }
+    });
 
-        // Live Sync Round Data
-        onValue(ref(db, 'vault/rounds'), (snapshot) => {
-            const data = snapshot.val() || {};
-            for (let i = 1; i <= 12; i++) {
-                const el = document.getElementById(`r${i}-val`);
-                if(el) el.innerText = data[`r${i}`] || "0.00";
-            }
-        });
-
-        onValue(ref(db, 'vault/overflow'), (snapshot) => {
-            const el = document.getElementById('val-overflow');
-            if(el) el.innerText = snapshot.val() || "0.000";
-        });
-    </script>
+    onValue(ref(db, 'vault/overflow'), (snap) => {
+        const el = document.getElementById('val-overflow');
+        if(el) el.innerText = snap.val() || "0.000";
+    });
+</script>
 </body>
 </html>

@@ -1,0 +1,194 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>SANRAT | Player Garage</title>
+    <style>
+        :root { --glass: rgba(255, 255, 255, 0.08); --accent: #00ffcc; --gold: #ffcc00; --danger: #ff4b2b; }
+        body { margin: 0; padding: 20px; font-family: 'Inter', sans-serif; background: #0b0e14; color: white; display: flex; flex-direction: column; align-items: center; }
+        
+        #auth-screen { display: flex; flex-direction: column; align-items: center; justify-content: center; height: 80vh; }
+        .btn-connect { background: #f6851b; color: white; padding: 15px 30px; border-radius: 50px; border: none; font-weight: bold; cursor: pointer; }
+
+        #player-ui { display: none; width: 100%; max-width: 1100px; }
+        .header-bar { display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px; background: var(--glass); padding: 15px; border-radius: 12px; }
+        
+        .grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); gap: 15px; }
+        .car-card { background: var(--glass); border: 1px solid rgba(255,255,255,0.1); border-radius: 15px; padding: 15px; position: relative; transition: 0.3s; }
+        .car-card.hero { border: 2px solid var(--gold); box-shadow: 0 0 15px rgba(255,204,0,0.2); }
+        .car-card.support { border: 2px solid var(--accent); }
+        
+        .role-badge { position: absolute; top: 10px; right: 10px; font-size: 0.6rem; padding: 2px 8px; border-radius: 50px; font-weight: bold; text-transform: uppercase; }
+        .badge-hero { background: var(--gold); color: black; }
+        .badge-support { background: var(--accent); color: black; }
+
+        .trait-row { display: flex; justify-content: space-between; font-size: 0.8rem; margin: 5px 0; color: #aaa; }
+        .trait-val { color: white; font-weight: bold; }
+        
+        .hp-bar-bg { width: 100%; height: 6px; background: #333; border-radius: 10px; margin-top: 10px; overflow: hidden; }
+        .hp-bar-fill { height: 100%; background: linear-gradient(90deg, var(--danger), var(--accent)); transition: 0.5s; }
+
+        .finance-card { background: rgba(0,0,0,0.4); border: 1px solid var(--gold); padding: 20px; border-radius: 15px; margin-bottom: 20px; display: flex; justify-content: space-between; align-items: center; }
+        .btn-action { padding: 10px 20px; border-radius: 8px; border: none; font-weight: bold; cursor: pointer; font-size: 0.8rem; }
+        .btn-pay { background: var(--accent); color: #00334e; }
+        .btn-claim { background: var(--gold); color: #000; }
+        .btn-release { background: transparent; border: 1px solid var(--danger); color: var(--danger); }
+        
+        select { background: #000; color: white; border: 1px solid var(--accent); padding: 8px; border-radius: 5px; cursor: pointer; }
+        .matrix-mini { width: 100%; margin-top: 10px; border-collapse: collapse; font-size: 0.65rem; }
+        .matrix-mini td { border: 1px solid #333; padding: 3px; text-align: center; color: #888; }
+    </style>
+</head>
+<body>
+
+    <div id="auth-screen">
+        <button class="btn-connect" id="connectBtn">Connect Wallet to Enter Garage</button>
+    </div>
+
+    <div id="player-ui">
+        <div class="header-bar">
+            <div>
+                <label>Select Team (Test Mode): </label>
+                <select id="teamSelect">
+                    <option value="Alpha">Alpha Team</option>
+                    <option value="Beta">Beta Team</option>
+                    <option value="Gamma">Gamma Team</option>
+                    <option value="Delta">Delta Team</option>
+                    <option value="Epsilon">Epsilon Team</option>
+                </select>
+            </div>
+            <div id="walletDisplay" style="font-size: 0.8rem; color: var(--accent);"></div>
+        </div>
+
+        <div class="finance-card">
+            <div>
+                <div style="font-size: 0.7rem; color: #888;">CLAIMABLE BALANCE</div>
+                <div id="claimableDisplay" style="font-size: 1.5rem; font-weight: bold; color: var(--gold);">0.000 tBNB</div>
+            </div>
+            <div style="display: flex; gap: 10px;">
+                <button class="btn-action btn-pay" onclick="payEntrance()">PAY ENTRANCE FEE</button>
+                <button class="btn-action btn-release" onclick="releaseToOrganizer()">RELEASE FUNDS</button>
+                <button class="btn-action btn-claim" onclick="claimPrize()">CLAIM PRIZE</button>
+            </div>
+        </div>
+
+        <div class="grid" id="garageGrid">
+            </div>
+    </div>
+
+    <script type="module">
+        import { initializeApp } from "https://www.gstatic.com/firebasejs/9.6.1/firebase-app.js";
+        import { getDatabase, ref, onValue, update } from "https://www.gstatic.com/firebasejs/9.6.1/firebase-database.js";
+
+        const firebaseConfig = { apiKey: "AlzaSyBYxLOGFzaHN6CS4ro_bjnKEblbQE6Vtx4", databaseURL: "https://nuclearf1-94a6b-default-rtdb.asia-southeast1.firebasedatabase.app" };
+        const app = initializeApp(firebaseConfig);
+        const db = getDatabase(app);
+
+        let currentUser = "";
+        let claimableBalance = 0.5; // Mock balance for testing
+
+        document.getElementById('connectBtn').onclick = async () => {
+            if (window.ethereum) {
+                const accs = await window.ethereum.request({ method: 'eth_requestAccounts' });
+                currentUser = accs[0];
+                document.getElementById('auth-screen').style.display = 'none';
+                document.getElementById('player-ui').style.display = 'block';
+                document.getElementById('walletDisplay').innerText = `Wallet: ${currentUser.substring(0,6)}...`;
+                loadGarage();
+            }
+        };
+
+        document.getElementById('teamSelect').onchange = () => loadGarage();
+
+        function loadGarage() {
+            const selectedTeam = document.getElementById('teamSelect').value;
+            onValue(ref(db, 'cars'), (snap) => {
+                const allCars = snap.val() || {};
+                const teamCars = Object.values(allCars).filter(c => c.team === selectedTeam);
+                renderCars(teamCars);
+            });
+        }
+
+        function renderCars(cars) {
+            const container = document.getElementById('garageGrid');
+            container.innerHTML = '';
+
+            cars.forEach(car => {
+                const sumTraits = car.traits.propulsion + car.traits.traction + car.traits.stability + car.traits.core;
+                const hp = 100 - (car.damage || 0);
+                const isHero = car.role === 'hero';
+                const isSupport = car.role === 'support';
+
+                const card = document.createElement('div');
+                card.className = `car-card ${isHero?'hero':''} ${isSupport?'support':''}`;
+                
+                let matrixHtml = `<table class="matrix-mini"><tr>`;
+                for(let i=1; i<=7; i++) matrixHtml += `<td>D${i}<br>${(car.daily_dist?.[`day${i}`]||0).toFixed(0)}</td>`;
+                matrixHtml += `</tr></table>`;
+
+                card.innerHTML = `
+                    ${isHero ? '<div class="role-badge badge-hero">Hero</div>' : ''}
+                    ${isSupport ? '<div class="role-badge badge-support">Support</div>' : ''}
+                    <div style="font-weight:bold; margin-bottom:10px;">CAR ${car.id}</div>
+                    
+                    <div class="trait-row"><span>Propulsion:</span><span class="trait-val">${car.traits.propulsion}</span></div>
+                    <div class="trait-row"><span>Traction:</span><span class="trait-val">${car.traits.traction}</span></div>
+                    <div class="trait-row"><span>Stability:</span><span class="trait-val">${car.traits.stability}</span></div>
+                    <div class="trait-row"><span>Core:</span><span class="trait-val">${car.traits.core}</span></div>
+                    
+                    <div class="trait-row" style="border-top:1px solid #333; padding-top:5px; margin-top:5px;">
+                        <span>Trait Sum:</span><span class="trait-val" style="color:var(--gold)">${sumTraits}</span>
+                    </div>
+
+                    <div style="margin-top:10px;">
+                        <div class="trait-row" style="font-size:0.7rem;"><span>HP:</span><span>${hp}%</span></div>
+                        <div class="hp-bar-bg"><div class="hp-bar-fill" style="width:${hp}%"></div></div>
+                    </div>
+
+                    ${matrixHtml}
+
+                    <div style="margin-top:15px; display:flex; gap:5px;">
+                        <button onclick="setRole(${car.id}, 'hero')" style="flex:1; font-size:0.6rem; cursor:pointer;">SET HERO</button>
+                        <button onclick="setRole(${car.id}, 'support')" style="flex:1; font-size:0.6rem; cursor:pointer;">SET SUPPORT</button>
+                    </div>
+                `;
+                container.appendChild(card);
+            });
+        }
+
+        window.setRole = async (id, role) => {
+            const team = document.getElementById('teamSelect').value;
+            // First, reset others in this team to have no role for this specific slot
+            onValue(ref(db, 'cars'), (snap) => {
+                const updates = {};
+                Object.keys(snap.val()).forEach(key => {
+                    if(snap.val()[key].team === team && snap.val()[key].role === role) {
+                        updates[`cars/${key}/role`] = null;
+                    }
+                });
+                updates[`cars/car_${id.toString().padStart(3,'0')}/role`] = role;
+                update(ref(db), updates);
+            }, { onlyOnce: true });
+        };
+
+        // --- Mock Financial Functions ---
+        window.payEntrance = async () => {
+            const fee = 0.1; 
+            if (claimableBalance >= fee) {
+                alert(`Paid ${fee} tBNB using Claimable Balance!`);
+                claimableBalance -= fee;
+            } else {
+                const remaining = (fee - claimableBalance).toFixed(3);
+                alert(`Using ${claimableBalance} from Claimable. Please pay remaining ${remaining} tBNB via MetaMask.`);
+                // Trigger MetaMask sendTransaction here...
+                claimableBalance = 0;
+            }
+            document.getElementById('claimableDisplay').innerText = `${claimableBalance.toFixed(3)} tBNB`;
+        };
+
+        window.releaseToOrganizer = () => alert("Funds released to Organizer pool.");
+        window.claimPrize = () => alert("Smart Contract: Prize Claimed!");
+
+    </script>
+</body>
+</html>

@@ -6,42 +6,31 @@
     <style>
         :root { --glass: rgba(255, 255, 255, 0.08); --accent: #00ffcc; }
         body { margin: 0; padding: 20px; font-family: 'Inter', sans-serif; background: #0f0c29; color: white; display: flex; flex-direction: column; align-items: center; }
-        .container { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; max-width: 900px; width: 100%; }
+        .container { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; max-width: 900px; width: 100%; margin-bottom: 20px; }
         .card { background: var(--glass); border: 1px solid rgba(255,255,255,0.1); border-radius: 20px; padding: 20px; text-align: center; }
-        input { background: rgba(0,0,0,0.4); border: 1px solid rgba(255,255,255,0.2); padding: 10px; border-radius: 8px; color: white; width: 70px; text-align: center; }
-        button { padding: 12px; border-radius: 10px; border: none; font-weight: bold; cursor: pointer; transition: 0.3s; margin-top: 10px; }
-        .btn-set { background: #fff; color: #000; width: 100%; }
-        .btn-reallocate { background: var(--accent); color: #00334e; width: 100%; font-size: 1.1rem; }
+        input { background: rgba(0,0,0,0.4); border: 1px solid rgba(255,255,255,0.2); padding: 8px; border-radius: 5px; color: white; width: 60px; }
+        button { padding: 10px; border-radius: 8px; border: none; font-weight: bold; cursor: pointer; margin-top: 10px; width: 100%; }
+        .btn-set { background: #fff; color: #000; width: auto; margin-left: 5px; }
+        .btn-reallocate { background: var(--accent); color: #00334e; font-size: 1.1rem; }
         .overflow-val { font-size: 2rem; color: #ffcc00; font-family: monospace; }
-        .sensor-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 10px; width: 100%; max-width: 900px; margin-top: 25px; }
+        .sensor-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 10px; width: 100%; max-width: 900px; }
         .sensor-box { background: rgba(255,255,255,0.03); border: 1px solid rgba(255,255,255,0.1); padding: 10px; border-radius: 10px; text-align: center; }
-        .total-label { font-size: 1.1rem; color: var(--accent); font-weight: bold; }
     </style>
 </head>
 <body>
     <h1>SPONSOR CONTROL</h1>
-    
     <div class="container">
         <div class="card">
-            <h3>LIMIT SETTINGS</h3>
-            <div style="margin-bottom:15px;">
-                Min: <input type="number" id="minIn" placeholder="0.1"> 
-                <button class="btn-set" onclick="window.setLimit('min')">UPDATE MIN</button>
-            </div>
-            <div>
-                Max: <input type="number" id="maxIn" placeholder="2.0"> 
-                <button class="btn-set" onclick="window.setLimit('max')">UPDATE MAX</button>
-            </div>
-            <p id="curLimits" style="font-size: 0.8rem; color:#888; margin-top:10px;"></p>
+            <h3>LIMITS</h3>
+            <div>Min: <input type="number" id="minIn"> <button class="btn-set" id="btnMin">SET</button></div>
+            <div style="margin-top:10px;">Max: <input type="number" id="maxIn"> <button class="btn-set" id="btnMax">SET</button></div>
         </div>
-
         <div class="card">
-            <h3>VAULT OVERFLOW</h3>
+            <h3>OVERFLOW</h3>
             <div class="overflow-val" id="disp-overflow">0.000</div>
-            <button class="btn-reallocate" onclick="window.reallocateVault()">REALLOCATE BY LIMITS</button>
+            <button class="btn-reallocate" id="btnReallocate">REALLOCATE BY LIMITS</button>
         </div>
     </div>
-
     <div class="sensor-grid" id="sensorGrid"></div>
 
     <script type="module">
@@ -52,12 +41,6 @@
         const app = initializeApp(firebaseConfig);
         const db = getDatabase(app);
 
-        // Sync Limits and Vault
-        onValue(ref(db, 'master_settings/limits'), (s) => {
-            const l = s.val() || { min: 0, max: 0 };
-            document.getElementById('curLimits').innerText = `CURRENT SYSTEM LIMITS: MIN ${l.min} | MAX ${l.max}`;
-        });
-
         onValue(ref(db, 'vault'), (snap) => {
             const d = snap.val() || {};
             document.getElementById('disp-overflow').innerText = parseFloat(d.overflow || 0).toFixed(3);
@@ -66,17 +49,14 @@
             for(let i=1; i<=12; i++) {
                 const r = d.rounds?.[`r${i}`] || { normal: 0, boost: 0 };
                 const total = (parseFloat(r.normal || 0) + parseFloat(r.boost || 0)).toFixed(3);
-                grid.innerHTML += `<div class="sensor-box"><div style="font-size:0.6rem;color:#888;">ROUND ${i}</div><div style="font-size:0.7rem;color:#aaa;">N:${parseFloat(r.normal).toFixed(2)} B:${parseFloat(r.boost).toFixed(2)}</div><div class="total-label">${total}</div></div>`;
+                grid.innerHTML += `<div class="sensor-box"><div style="font-size:0.6rem;color:#888;">ROUND ${i}</div><div style="font-size:0.7rem;">N:${parseFloat(r.normal).toFixed(2)} B:${parseFloat(r.boost).toFixed(2)}</div><div style="color:var(--accent);font-weight:bold;">${total}</div></div>`;
             }
         });
 
-        window.setLimit = (type) => {
-            const val = parseFloat(document.getElementById(type+'In').value);
-            if(isNaN(val)) return;
-            update(ref(db, 'master_settings/limits'), { [type]: val }).then(() => alert(type.toUpperCase() + " Updated"));
-        };
+        document.getElementById('btnMin').onclick = () => update(ref(db, 'master_settings/limits'), { min: parseFloat(document.getElementById('minIn').value) });
+        document.getElementById('btnMax').onclick = () => update(ref(db, 'master_settings/limits'), { max: parseFloat(document.getElementById('maxIn').value) });
 
-        window.reallocateVault = async () => {
+        document.getElementById('btnReallocate').onclick = async () => {
             const snap = await get(ref(db));
             const data = snap.val() || {};
             const limits = data.master_settings?.limits || { max: 2.0 };
@@ -86,7 +66,6 @@
             for(let i=1; i<=12; i++) {
                 if(!rounds[`r${i}`]) rounds[`r${i}`] = { normal: 0, boost: 0 };
                 let curN = parseFloat(rounds[`r${i}`].normal || 0);
-                
                 if(curN > limits.max) {
                     overflow += (curN - limits.max);
                     rounds[`r${i}`].normal = limits.max;
@@ -96,7 +75,7 @@
                     overflow -= fill;
                 }
             }
-            update(ref(db, 'vault'), { rounds, overflow: parseFloat(overflow.toFixed(3)) }).then(() => alert("Reallocation Complete"));
+            update(ref(db, 'vault'), { rounds, overflow: parseFloat(overflow.toFixed(3)) }).then(() => alert("Done"));
         };
     </script>
 </body>

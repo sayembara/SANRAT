@@ -27,9 +27,9 @@
         .track-box { background: #161b22; border-radius: 15px; padding: 20px; border: 1px solid #30363d; width: 100%; box-sizing: border-box; }
         .track-lane { position: relative; width: 100%; height: 32px; border-bottom: 1px solid #21262d; }
         .track-car { position: absolute; height: 20px; width: 35px; border-radius: 4px; top: 6px; transition: 1s linear; font-size: 0.6rem; color: black; font-weight: 900; text-align: center; line-height: 20px; cursor: help; }
-        .track-car.hero { background: var(--gold); box-shadow: 0 0 10px var(--gold); }
-        .track-car.support { background: var(--accent); box-shadow: 0 0 10px var(--accent); }
-        .finish-line { position: absolute; left: 66.6%; top: 0; bottom: 0; border-left: 2px dashed #444; }
+        .track-car.hero { background: var(--gold); box-shadow: 0 0 10px var(--gold); z-index: 2; }
+        .track-car.support { background: var(--accent); box-shadow: 0 0 10px var(--accent); z-index: 1; }
+        .finish-line { position: absolute; left: 80%; top: 0; bottom: 0; border-left: 2px dashed #444; }
         select { background:#000; color:white; border:1px solid var(--accent); padding:8px; border-radius:5px; }
     </style>
 </head>
@@ -63,7 +63,7 @@
         <div class="track-box">
             <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:10px;">
                 <h3 style="margin:0;">RACE TRACK (LIVE)</h3>
-                <span id="track-status" style="font-size:0.7rem; color:var(--gold);">OFFLINE</span>
+                <span id="track-status" style="font-size:0.7rem; color:var(--gold); border: 1px solid; padding: 2px 8px; border-radius: 4px;">OFFLINE</span>
             </div>
             <div id="track-container" style="position:relative; width:100%; height:320px; background:#000; border-radius:10px; overflow-y:auto;">
                 <div class="finish-line"></div>
@@ -130,14 +130,9 @@
             const pSnap = await get(ref(db, `prizes/${team}`));
             const prizeAmt = pSnap.val() || 0;
             if(prizeAmt <= 0) return alert("No prize to claim");
-            
             const bSnap = await get(ref(db, `balances/${team}`));
             const curBal = bSnap.val() || 0;
-            
-            await update(ref(db), {
-                [`balances/${team}`]: curBal + prizeAmt,
-                [`prizes/${team}`]: 0
-            });
+            await update(ref(db), { [`balances/${team}`]: curBal + prizeAmt, [`prizes/${team}`]: 0 });
             alert("Prize added to team balance!");
         };
 
@@ -180,7 +175,11 @@
         };
 
         function listenToTrack() {
-            onValue(ref(db, 'master_state'), s => { document.getElementById('track-status').innerText = s.val()?.label || "OFFLINE"; });
+            onValue(ref(db, 'master_state'), s => { 
+                const state = s.val();
+                document.getElementById('track-status').innerText = state?.label || "OFFLINE";
+                document.getElementById('track-status').style.color = state?.isLive ? "var(--accent)" : "var(--gold)";
+            });
             onValue(ref(db, 'race_state/paid_teams'), paidSnap => {
                 const paidTeams = paidSnap.val() || {};
                 onValue(ref(db, 'cars'), carSnap => {
@@ -188,7 +187,7 @@
                     layer.innerHTML = '';
                     Object.values(carSnap.val()).forEach(c => {
                         if(paidTeams[c.team] && c.role) {
-                            const prog = (c.total_dist || 0) / 1500 * 100;
+                            const prog = Math.min((c.total_dist || 0) / 2000 * 100, 95);
                             const tip = `ID:${c.id}\nP:${c.traits.propulsion} T:${c.traits.traction} S:${c.traits.stability} C:${c.traits.core}\nDist:${c.total_dist?.toFixed(1)}m`;
                             layer.innerHTML += `<div class="track-lane"><div class="track-car ${c.role}" style="left:${prog}%" title="${tip}">${c.id}</div></div>`;
                         }

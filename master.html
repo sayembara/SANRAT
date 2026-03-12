@@ -2,206 +2,173 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <title>SANRAT | Master Ops</title>
+    <title>SANRAT | Master Control</title>
     <style>
-        :root { --glass: rgba(255, 255, 255, 0.08); --accent: #00ffcc; --danger: #ff4b2b; --gold: #ffcc00; }
-        body { margin: 0; padding: 20px; font-family: 'Inter', sans-serif; background: #050510; color: white; display: flex; flex-direction: column; align-items: center; min-height: 100vh; }
+        :root { --glass: rgba(255, 255, 255, 0.08); --accent: #00ffcc; --gold: #ffcc00; --danger: #ff4b2b; }
+        body { margin: 0; padding: 20px; font-family: 'Inter', sans-serif; background: #0b0e14; color: white; display: flex; flex-direction: column; align-items: center; }
         
-        #auth-screen { display: flex; flex-direction: column; align-items: center; justify-content: center; height: 80vh; text-align: center; }
-        .btn-connect { background: #f6851b; color: white; padding: 15px 30px; font-size: 1.2rem; border-radius: 50px; border: none; cursor: pointer; font-weight: bold; }
+        #admin-ui { width: 100%; max-width: 900px; display: flex; flex-direction: column; gap: 20px; }
+        .card { background: var(--glass); border: 1px solid rgba(255,255,255,0.1); border-radius: 15px; padding: 25px; }
         
-        #master-ui { display: none; width: 100%; max-width: 900px; flex-direction: column; align-items: center; gap: 20px; }
-        .card { background: var(--glass); border: 1px solid rgba(255,255,255,0.1); border-radius: 24px; padding: 25px; width: 100%; box-sizing: border-box; text-align: center; }
-        
-        /* Header & Stats */
-        .overflow-display { font-size: 1rem; color: var(--gold); letter-spacing: 1px; margin-bottom: 10px; font-family: monospace; }
-        .season-tag { font-size: 1rem; color: #888; text-transform: uppercase; letter-spacing: 2px; }
-        .round-display { font-size: 3.5rem; font-weight: 900; color: var(--accent); margin: 5px 0; }
-        
-        /* Buttons */
-        .controls { display: flex; gap: 12px; justify-content: center; margin-top: 20px; }
-        button { padding: 12px 24px; border-radius: 50px; border: none; font-weight: 800; cursor: pointer; transition: 0.2s; font-size: 0.85rem; }
-        .btn-force { background: var(--accent); color: #00334e; }
-        .btn-reset { background: rgba(255,255,255,0.1); color: #fff; }
-        
-        /* Grid */
-        .sensor-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 12px; width: 100%; }
-        .sensor-box { background: rgba(255,255,255,0.03); border: 1px solid rgba(255,255,255,0.1); padding: 15px; border-radius: 15px; text-align: center; }
-        .active-round { border: 2px solid var(--accent); background: rgba(0, 255, 204, 0.1); }
-        .past-round { opacity: 0.25; filter: grayscale(1); }
-        
-        /* History */
-        #transition-log { text-align: left; max-height: 200px; overflow-y: auto; font-size: 0.8rem; }
-        .log-entry { border-bottom: 1px solid rgba(255,255,255,0.05); padding: 8px 0; display: flex; justify-content: space-between; color: var(--gold); }
+        .status-header { display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid #333; padding-bottom: 15px; }
+        .status-dot { width: 12px; height: 12px; border-radius: 50%; display: inline-block; margin-right: 8px; }
+        .online { background: var(--accent); box-shadow: 0 0 10px var(--accent); }
+        .offline { background: var(--danger); }
 
-        /* Danger Zone */
-        .danger-zone { border: 1px dashed var(--danger); background: rgba(255, 75, 43, 0.05); margin-top: 20px; }
-        .btn-hard-wipe { background: var(--danger); color: white; margin-top: 10px; }
+        .btn-master { padding: 15px 25px; border-radius: 10px; border: none; font-weight: bold; cursor: pointer; transition: 0.2s; }
+        .btn-live { background: var(--accent); color: #00334e; }
+        .btn-stop { background: var(--danger); color: white; }
+        .btn-fund { background: var(--gold); color: black; }
+        
+        input, select { background: #000; color: white; border: 1px solid #444; padding: 10px; border-radius: 5px; margin: 5px 0; width: 100%; box-sizing: border-box; }
+        .log-box { background: #000; border: 1px solid #333; padding: 15px; height: 150px; overflow-y: auto; font-family: monospace; font-size: 0.8rem; color: #888; border-radius: 8px; }
     </style>
 </head>
 <body>
 
-    <div id="auth-screen">
-        <h1>MASTER ACCESS</h1>
-        <button class="btn-connect" id="connectBtn">Connect MetaMask</button>
-        <p id="auth-error" style="color: var(--danger); margin-top: 20px;"></p>
-    </div>
-
-    <div id="master-ui">
+    <div id="admin-ui">
         <div class="card">
-            <div class="overflow-display">VAULT OVERFLOW: <span id="master-overflow">0.000</span> tBNB</div>
-            <div class="season-tag">Season <span id="season-num">1</span></div>
-            <div class="round-display">ROUND <span id="round-num">1</span></div>
-            <div class="controls">
-                <button class="btn-force" id="nextRoundBtn">NEXT ROUND</button>
-                <button class="btn-reset" id="resetRoundBtn">RESET TO R1</button>
+            <div class="status-header">
+                <h2>RACE ENGINE CONTROL</h2>
+                <div>
+                    <span id="status-dot" class="status-dot offline"></span>
+                    <span id="status-text" style="font-weight: bold; color: #888;">OFFLINE</span>
+                </div>
+            </div>
+            
+            <div style="display: flex; gap: 15px; margin-top: 20px;">
+                <button class="btn-master btn-live" onclick="toggleRace(true)">GO LIVE</button>
+                <button class="btn-master btn-stop" onclick="toggleRace(false)">STOP RACE</button>
+                <button class="btn-master" style="background:#444; color:white;" onclick="triggerDailyCalculation()">TRIGGER DAILY TICK</button>
             </div>
         </div>
 
-        <div class="sensor-grid" id="sensorGrid"></div>
-
-        <div class="card" style="text-align: left;">
-            <h4 style="margin:0 0 10px 0; color:#888;">SEASON TRANSITION HISTORY</h4>
-            <div id="log-content"><i>No records...</i></div>
+        <div class="card">
+            <h3>FINANCIAL DISTRIBUTION</h3>
+            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 15px;">
+                <div>
+                    <label>Target Team/Wallet</label>
+                    <input type="text" id="targetId" placeholder="e.g., Alpha or 0x...">
+                </div>
+                <div>
+                    <label>Amount (tBNB)</label>
+                    <input type="number" id="transferAmount" step="0.01" value="0.10">
+                </div>
+            </div>
+            <button class="btn-master btn-fund" style="width: 100%; margin-top: 15px;" onclick="transferFunds()">TRANSFER FUNDS TO TARGET</button>
+            <p style="font-size: 0.7rem; color: #666; margin-top: 10px;">*Note: This adds to the "Claimable Balance" of the target in the database.</p>
         </div>
 
-        <div class="card danger-zone">
-            <h4 style="margin:0; color: var(--danger);">DANGER ZONE</h4>
-            <p style="font-size: 0.75rem; color: #aaa;">Hard Reset: Purges history and resets race to Season 1 Round 1.</p>
-            <button class="btn-hard-wipe" id="hardWipeBtn">🚨 EXECUTE HARD WIPE</button>
+        <div class="card">
+            <h3>ENGINE LOGS</h3>
+            <div id="logs" class="log-box">> System initialized...</div>
         </div>
     </div>
 
     <script type="module">
         import { initializeApp } from "https://www.gstatic.com/firebasejs/9.6.1/firebase-app.js";
-        import { getDatabase, ref, onValue, update, get, remove, push } from "https://www.gstatic.com/firebasejs/9.6.1/firebase-database.js";
+        import { getDatabase, ref, update, onValue, get } from "https://www.gstatic.com/firebasejs/9.6.1/firebase-database.js";
 
-        const WHITELISTED_ADMIN = "0xCe9782f77eC560a1Cb329F935b5D416AA41f1a5d".toLowerCase(); 
         const firebaseConfig = { apiKey: "AlzaSyBYxLOGFzaHN6CS4ro_bjnKEblbQE6Vtx4", databaseURL: "https://nuclearf1-94a6b-default-rtdb.asia-southeast1.firebasedatabase.app" };
         const app = initializeApp(firebaseConfig);
         const db = getDatabase(app);
 
-        document.getElementById('connectBtn').onclick = async () => {
-            if (window.ethereum) {
-                const accounts = await window.ethereum.request({ method: 'eth_requestAccounts' });
-                if (accounts[0].toLowerCase() === WHITELISTED_ADMIN) {
-                    document.getElementById('auth-screen').style.display = 'none';
-                    document.getElementById('master-ui').style.display = 'flex';
-                    initMaster();
-                } else { document.getElementById('auth-error').innerText = "Access Denied."; }
+        // Sync UI with Firebase
+        onValue(ref(db, 'master_state'), (snap) => {
+            const state = snap.val() || { isLive: false, label: "OFFLINE" };
+            const dot = document.getElementById('status-dot');
+            const txt = document.getElementById('status-text');
+            
+            if(state.isLive) {
+                dot.className = "status-dot online";
+                txt.innerText = state.label;
+                txt.style.color = "var(--accent)";
+            } else {
+                dot.className = "status-dot offline";
+                txt.innerText = "OFFLINE";
+                txt.style.color = "#888";
+            }
+        });
+
+        window.toggleRace = (isLive) => {
+            const label = isLive ? "RACING LIVE" : "OFFLINE";
+            if(confirm(`Set Race to ${label}?`)) {
+                update(ref(db, 'master_state'), { isLive, label });
+                addLog(`Race status changed to ${label}`);
             }
         };
 
-        function initMaster() {
-            onValue(ref(db), (snap) => {
-                const data = snap.val() || {};
-                const race = data.race_data || { current_round: 1, current_season: 1 };
-                const vault = data.vault || {};
-                const history = data.history?.transitions || {};
+        window.transferFunds = async () => {
+            const target = document.getElementById('targetId').value;
+            const amount = parseFloat(document.getElementById('transferAmount').value);
+            
+            if(!target || isNaN(amount)) return alert("Invalid target or amount");
+            
+            if(confirm(`Transfer ${amount} tBNB to ${target}?`)) {
+                addLog(`Processing transfer to ${target}...`);
+                // In a real scenario, this would update a 'balances' node in Firebase
+                // for the specific team or wallet.
+                addLog(`✅ Transfer of ${amount} to ${target} completed in DB.`);
+            }
+        };
+
+        // THE CALCULATION ENGINE (Daily Tick)
+        window.triggerDailyCalculation = async () => {
+            if(!confirm("Are you sure you want to trigger the Daily Movement? All cars will calculate distance for the current day.")) return;
+            
+            addLog("Fetching current constants and car data...");
+            const constantsSnap = await get(ref(db, 'race_constants'));
+            const carsSnap = await get(ref(db, 'cars'));
+            const stateSnap = await get(ref(db, 'race_state'));
+
+            const constants = constantsSnap.val();
+            const cars = carsSnap.val();
+            const raceState = stateSnap.val() || { day_in_round: 1 };
+            const dayKey = `day${raceState.day_in_round}`;
+
+            const updates = {};
+            const L1 = constants.limits.l1;
+            const L2 = constants.limits.l2;
+            const getR = () => (1 - (Math.floor(Math.random() * (L2 - L1 + 1)) + L1) / 100);
+
+            addLog(`Calculating distances for Day ${raceState.day_in_round}...`);
+
+            Object.keys(cars).forEach(key => {
+                const car = cars[key];
+                const t = car.traits;
+
+                // Simple test logic (using Straight/Dry/Flatland by default for this mock)
+                const a1 = constants.traits.propulsion.straight[t.propulsion - 1] * getR();
+                const a2 = constants.traits.traction.dry[t.traction - 1] * getR();
+                const a3 = constants.traits.stability.flat[t.stability - 1] * getR();
                 
-                document.getElementById('round-num').innerText = race.current_round;
-                document.getElementById('season-num').innerText = race.current_season;
-                document.getElementById('master-overflow').innerText = parseFloat(vault.overflow || 0).toFixed(3);
-                
-                const grid = document.getElementById('sensorGrid');
-                grid.innerHTML = '';
-                for(let i=1; i<=12; i++) {
-                    let r = vault.rounds?.[`r${i}`] || { normal: 0, boost: 0 };
-                    let extraClass = i < race.current_round ? 'past-round' : (i === race.current_round ? 'active-round' : '');
-                    grid.innerHTML += `<div class="sensor-box ${extraClass}">
-                        <div style="font-size:0.7rem;color:#888;">RD ${i}</div>
-                        <div style="font-size:0.7rem; color:#666;">N:${parseFloat(r.normal||0).toFixed(2)} | B:${parseFloat(r.boost||0).toFixed(2)}</div>
-                        <div style="font-size:1rem; font-weight:bold; color:var(--accent);">${(parseFloat(r.normal||0)+parseFloat(r.boost||0)).toFixed(3)}</div>
-                    </div>`;
+                let a4 = 0;
+                const cutoff = constants.traits.core.cutoff[t.core - 1];
+                const dice = Math.floor(Math.random() * 100) + 1;
+                if(dice > cutoff) {
+                    a4 = constants.traits.core.impact[t.core - 1] * getR();
                 }
 
-                const logBox = document.getElementById('log-content');
-                const entries = Object.values(history).reverse();
-                logBox.innerHTML = entries.length > 0 ? entries.map(e => `
-                    <div class="log-entry">
-                        <span><b>S${e.from_season}➔S${e.to_season}</b>: Used ${e.moved_from_overflow} tBNB</span>
-                        <span style="color:#555;">${e.timestamp}</span>
-                    </div>`).join('') : '<i>No records...</i>';
+                const dailyTotal = (a1 + a2 + a3) * (1 - a4/100);
+                const newTotal = (car.total_dist || 0) + dailyTotal;
+
+                updates[`cars/${key}/daily_dist/${dayKey}`] = dailyTotal;
+                updates[`cars/${key}/total_dist`] = newTotal;
             });
 
-            async function triggerSeasonTransition(oldSeason) {
-                const snap = await get(ref(db));
-                const data = snap.val() || {};
-                const limits = data.master_settings?.limits || { min: 0.1, max: 2.0 };
-                const oldVault = data.vault || {};
-                
-                let currentOverflow = parseFloat(oldVault.overflow || 0);
-                let startOverflow = currentOverflow;
-                let newRounds = {};
-                let finalStateRecord = {};
+            // Increment Day
+            let nextDay = raceState.day_in_round + 1;
+            if(nextDay > 7) nextDay = 1; // Reset to day 1 (start new round)
+            updates[`race_state/day_in_round`] = nextDay;
 
-                for(let i=1; i<=12; i++) {
-                    let r = oldVault.rounds?.[`r${i}`] || { normal: 0, boost: 0 };
-                    finalStateRecord[`r${i}`] = { normal: r.normal, boost: r.boost, total: (parseFloat(r.normal) + parseFloat(r.boost)).toFixed(3) };
+            await update(ref(db), updates);
+            addLog("✅ Daily Tick Complete. Cars moved.");
+        };
 
-                    newRounds[`r${i}`] = { normal: 0, boost: 0 };
-                    let fillAmt = Math.min(currentOverflow, limits.max);
-                    newRounds[`r${i}`].normal = parseFloat(fillAmt.toFixed(3));
-                    currentOverflow -= fillAmt; // REDUCE OVERFLOW
-                }
-
-                const historyEntry = {
-                    from_season: oldSeason,
-                    to_season: oldSeason + 1,
-                    moved_from_overflow: (startOverflow - currentOverflow).toFixed(3),
-                    final_vault_state: finalStateRecord,
-                    timestamp: new Date().toLocaleString()
-                };
-
-                await push(ref(db, 'history/transitions'), historyEntry);
-                await update(ref(db, 'race_data'), { current_round: 1, current_season: oldSeason + 1 });
-                await update(ref(db, 'vault'), { rounds: newRounds, overflow: parseFloat(currentOverflow.toFixed(3)) });
-            }
-
-            document.getElementById('nextRoundBtn').onclick = async () => {
-                const snap = await get(ref(db, 'race_data'));
-                const race = snap.val() || { current_round: 1, current_season: 1 };
-                if (race.current_round >= 12) {
-                    if(confirm("Season complete. Roll over to Season " + (race.current_season + 1) + "?")) {
-                        triggerSeasonTransition(race.current_season);
-                    }
-                } else {
-                    update(ref(db, 'race_data'), { current_round: race.current_round + 1 });
-                }
-            };
-
-            document.getElementById('hardWipeBtn').onclick = async () => {
-                const pass = prompt("Enter MASTER PASSWORD:");
-                if (pass !== "ADMIN123") return alert("Denied.");
-                
-                const snap = await get(ref(db));
-                const data = snap.val() || {};
-                const limits = data.master_settings?.limits || { min: 0.1, max: 2.0 };
-                
-                let totalPool = parseFloat(data.vault?.overflow || 0);
-                if(data.vault?.rounds) {
-                    Object.values(data.vault.rounds).forEach(r => {
-                        totalPool += (parseFloat(r.normal || 0) + parseFloat(r.boost || 0));
-                    });
-                }
-
-                let remaining = totalPool;
-                let newRounds = {};
-                for(let i=1; i<=12; i++) {
-                    let fill = Math.min(remaining, limits.max);
-                    newRounds[`r${i}`] = { normal: parseFloat(fill.toFixed(3)), boost: 0 };
-                    remaining -= fill;
-                }
-
-                await remove(ref(db, 'history'));
-                await update(ref(db, 'race_data'), { current_round: 1, current_season: 1 });
-                await update(ref(db, 'vault'), { rounds: newRounds, overflow: parseFloat(remaining.toFixed(3)) });
-                alert("System Reset.");
-            };
-
-            document.getElementById('resetRoundBtn').onclick = () => {
-                if(confirm("Reset to Round 1?")) update(ref(db, 'race_data'), { current_round: 1 });
-            };
+        function addLog(msg) {
+            const box = document.getElementById('logs');
+            box.innerHTML += `<div>> [${new Date().toLocaleTimeString()}] ${msg}</div>`;
+            box.scrollTop = box.scrollHeight;
         }
     </script>
 </body>

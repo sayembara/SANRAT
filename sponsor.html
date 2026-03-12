@@ -23,7 +23,7 @@
         .btn-wipe { background: transparent; border: 2px solid var(--danger); color: var(--danger); width: 100%; margin-top: 20px; }
 
         .sensor-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 12px; width: 100%; }
-        .sensor-box { background: rgba(255,255,255,0.03); border: 1px solid rgba(255,255,255,0.1); padding: 12px; border-radius: 12px; text-align: center; position: relative; }
+        .sensor-box { background: rgba(255,255,255,0.03); border: 1px solid rgba(255,255,255,0.1); padding: 12px; border-radius: 12px; text-align: center; }
         .val-sub-n { font-size: 0.65rem; color: #bbb; }
         .val-sub-b { font-size: 0.65rem; color: var(--gold); font-weight: bold; }
         .val-main { font-size: 0.95rem; font-weight: bold; color: var(--accent); border-top: 1px solid rgba(255,255,255,0.08); padding-top: 4px; margin-top: 4px; }
@@ -32,13 +32,13 @@
         .history-content { display: none; margin-top: 15px; border-top: 1px solid rgba(255,255,255,0.1); padding-top: 10px; }
         .history-list { text-align: left; max-height: 200px; overflow-y: auto; }
         .log-entry { display: flex; justify-content: space-between; padding: 8px 0; border-bottom: 1px solid rgba(255,255,255,0.05); align-items: center; }
-        .toggle-arrow { transition: transform 0.3s; }
         .active .toggle-arrow { transform: rotate(180deg); }
 
         #historyModal { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.9); z-index: 100; justify-content: center; align-items: center; }
-        .modal-content { background: #1a1a2e; border: 1px solid var(--accent); padding: 30px; border-radius: 20px; width: 90%; max-width: 500px; }
+        .modal-content { background: #1a1a2e; border: 1px solid var(--accent); padding: 30px; border-radius: 20px; width: 95%; max-width: 550px; }
         table { width: 100%; border-collapse: collapse; margin-top: 15px; font-size: 0.8rem; }
-        th, td { border: 1px solid rgba(255,255,255,0.1); padding: 6px; text-align: center; }
+        th, td { border: 1px solid rgba(255,255,255,0.1); padding: 8px; text-align: center; }
+        .t-footer { background: rgba(255,255,255,0.05); font-weight: 900; }
         .td-b { color: var(--gold); }
         .td-t { color: var(--accent); font-weight: bold; }
     </style>
@@ -99,10 +99,8 @@
 
         document.getElementById('toggleHistory').onclick = () => {
             const content = document.getElementById('historyContent');
-            const card = document.getElementById('historyCard');
-            const isVisible = content.style.display === 'block';
-            content.style.display = isVisible ? 'none' : 'block';
-            card.classList.toggle('active', !isVisible);
+            document.getElementById('historyCard').classList.toggle('active');
+            content.style.display = content.style.display === 'block' ? 'none' : 'block';
         };
 
         document.getElementById('connectBtn').onclick = async () => {
@@ -130,16 +128,12 @@
                 grid.innerHTML = '';
                 for(let i=1; i<=12; i++) {
                     let r = vault.rounds?.[`r${i}`] || { normal: 0, boost: 0 };
-                    let n = parseFloat(r.normal || 0).toFixed(2);
-                    let b = parseFloat(r.boost || 0).toFixed(2);
-                    let total = (parseFloat(n) + parseFloat(b)).toFixed(3);
-                    
                     grid.innerHTML += `
                         <div class="sensor-box">
                             <div style="font-size:0.55rem;color:#555;margin-bottom:4px;">RD ${i}</div>
-                            <div class="val-sub-n">N: ${n}</div>
-                            <div class="val-sub-b">B: ${b}</div>
-                            <div class="val-main">${total}</div>
+                            <div class="val-sub-n">N: ${parseFloat(r.normal||0).toFixed(2)}</div>
+                            <div class="val-sub-b">B: ${parseFloat(r.boost||0).toFixed(2)}</div>
+                            <div class="val-main">${(parseFloat(r.normal||0)+parseFloat(r.boost||0)).toFixed(3)}</div>
                         </div>`;
                 }
 
@@ -149,30 +143,32 @@
                     <div class="log-entry">
                         <span>Season ${e.from_season} <small style="color:#555; margin-left:10px;">${e.timestamp}</small></span>
                         <button class="btn-view" onclick="window.showDetails('${id}')">DETAILS</button>
-                    </div>`).join('') : '<i>No records found.</i>';
+                    </div>`).join('') : '<i>No records.</i>';
 
                 window.showDetails = (id) => {
                     const record = history[id];
                     const states = record.final_vault_state;
-                    document.getElementById('modalTitle').innerText = `Season ${record.from_season} Summary`;
+                    let tN = 0, tB = 0, tT = 0;
+                    
                     let table = `<table><tr><th>RD</th><th>Norm</th><th>Boost</th><th>Total</th></tr>`;
                     for(let i=1; i<=12; i++) {
                         let rd = states[`r${i}`];
-                        table += `<tr>
-                            <td>${i}</td>
-                            <td>${parseFloat(rd.normal).toFixed(2)}</td>
-                            <td class="td-b">${parseFloat(rd.boost).toFixed(2)}</td>
-                            <td class="td-t">${rd.total}</td>
-                        </tr>`;
+                        let n = parseFloat(rd.normal || 0);
+                        let b = parseFloat(rd.boost || 0);
+                        let tot = parseFloat(rd.total || 0);
+                        tN += n; tB += b; tT += tot;
+                        table += `<tr><td>${i}</td><td>${n.toFixed(2)}</td><td class="td-b">${b.toFixed(2)}</td><td class="td-t">${tot.toFixed(3)}</td></tr>`;
                     }
-                    document.getElementById('modalBody').innerHTML = table + `</table><p style="font-size:0.75rem; color:var(--gold); margin-top:10px;">Reclaimed: ${record.moved_from_overflow} tBNB</p>`;
+                    // Summary Row
+                    table += `<tr class="t-footer"><td>SUM</td><td>${tN.toFixed(2)}</td><td class="td-b">${tB.toFixed(2)}</td><td class="td-t">${tT.toFixed(3)}</td></tr>`;
+                    document.getElementById('modalBody').innerHTML = table + `</table><p style="font-size:0.75rem; color:var(--gold); margin-top:10px;">Reclaimed to Overflow: ${record.moved_from_overflow} tBNB</p>`;
                     document.getElementById('historyModal').style.display = 'flex';
                 };
             });
 
             document.getElementById('btnMin').onclick = () => update(ref(db, 'master_settings/limits'), { min: parseFloat(document.getElementById('minIn').value) });
             document.getElementById('btnMax').onclick = () => update(ref(db, 'master_settings/limits'), { max: parseFloat(document.getElementById('maxIn').value) });
-            document.getElementById('btnWipe').onclick = () => confirm("Wipe all round funds?") && set(ref(db, 'vault/rounds'), {});
+            document.getElementById('btnWipe').onclick = () => confirm("Wipe all rounds?") && set(ref(db, 'vault/rounds'), {});
         }
     </script>
 </body>

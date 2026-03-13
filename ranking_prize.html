@@ -2,162 +2,167 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>SANRAT | Ranking & Prize Engine</title>
+    <title>SANRAT | Ranking & Prize Setup</title>
     <style>
         :root { --glass: rgba(255, 255, 255, 0.08); --accent: #00ffcc; --gold: #ffcc00; --bg: #0b0e14; }
-        body { margin: 0; padding: 20px; font-family: 'Inter', sans-serif; background: var(--bg); color: white; }
-        .grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(350px, 1fr)); gap: 20px; }
-        .card { background: var(--glass); border: 1px solid rgba(255,255,255,0.1); border-radius: 15px; padding: 20px; }
-        h2 { color: var(--gold); margin-top: 0; border-bottom: 1px solid #333; padding-bottom: 10px; }
-        table { width: 100%; border-collapse: collapse; margin-top: 10px; font-size: 0.85rem; }
-        th, td { text-align: left; padding: 12px; border-bottom: 1px solid #222; }
-        .tier-badge { padding: 4px 8px; border-radius: 4px; font-weight: bold; font-size: 0.7rem; }
-        .diamond { background: #b9f2ff; color: #000; }
-        .gold { background: var(--gold); color: #000; }
-        .silver { background: #c0c0c0; color: #000; }
-        .btn-claim { background: var(--accent); color: #00334e; border: none; padding: 10px 20px; border-radius: 5px; cursor: pointer; font-weight: bold; }
-        .stat-box { display: flex; justify-content: space-between; margin-bottom: 10px; font-size: 0.9rem; }
+        body { margin: 0; padding: 20px; font-family: 'Inter', sans-serif; background: var(--bg); color: white; display: flex; flex-direction: column; align-items: center; }
+        .container { width: 100%; max-width: 1000px; }
+        .card { background: var(--glass); border: 1px solid rgba(255,255,255,0.1); border-radius: 15px; padding: 25px; margin-bottom: 20px; }
+        h2 { color: var(--gold); margin-top: 0; border-bottom: 1px solid #333; padding-bottom: 10px; display: flex; justify-content: space-between; }
+        .grid-config { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 20px; }
+        .input-group { display: flex; flex-direction: column; gap: 8px; }
+        label { font-size: 0.8rem; color: #aaa; text-transform: uppercase; letter-spacing: 1px; }
+        input { background: #000; border: 1px solid #444; color: var(--accent); padding: 10px; border-radius: 5px; font-family: monospace; }
+        .btn-save { background: var(--accent); color: #000; border: none; padding: 15px 30px; border-radius: 8px; font-weight: bold; cursor: pointer; width: 100%; transition: 0.3s; }
+        .btn-save:hover { background: #00d4aa; box-shadow: 0 0 15px rgba(0,255,204,0.3); }
+        .percentage-display { font-size: 0.7rem; color: var(--gold); margin-top: 5px; }
     </style>
 </head>
 <body>
 
-    <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:30px;">
-        <h1>🏆 SEASON STANDINGS & PRIZES</h1>
-        <div id="pool-info" class="card" style="padding:10px 20px;">
-            Total Pool: <span id="totalBNB" style="color:var(--accent); font-weight:bold;">0.00 BNB</span>
-        </div>
-    </div>
-
-    <div class="grid">
-        <div class="card" style="grid-column: span 2;">
-            <h2>Driver Standings</h2>
-            <div id="tier-filters" style="margin-bottom:15px;"></div>
-            <table>
-                <thead>
-                    <tr>
-                        <th>Rank</th>
-                        <th>Car ID</th>
-                        <th>Owner</th>
-                        <th>Tier</th>
-                        <th>Season Points</th>
-                        <th>Pending BNB</th>
-                    </tr>
-                </thead>
-                <tbody id="driverBody"></tbody>
-            </table>
+    <div class="container">
+        <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:20px;">
+            <h1>⚙️ Season Setup</h1>
+            <button class="btn-save" style="width:auto;" onclick="window.location.href='master.html'">Back to Master</button>
         </div>
 
         <div class="card">
-            <h2>Constructor Cup (Top 2 Logic)</h2>
-            <table>
-                <thead>
-                    <tr>
-                        <th>Rank</th>
-                        <th>Team/Owner</th>
-                        <th>Points</th>
-                    </tr>
-                </thead>
-                <tbody id="teamBody"></tbody>
-            </table>
+            <h2>Prize Pool Allocation (BNB)</h2>
+            <div class="input-group" style="margin-bottom:20px;">
+                <label>Total Season Pool (BNB)</label>
+                <input type="number" id="total_pool" step="0.1" value="10.0">
+            </div>
+            <div class="grid-config">
+                <div class="input-group">
+                    <label>Podium (1st-3rd) %</label>
+                    <input type="number" id="pct_podium" value="55">
+                </div>
+                <div class="input-group">
+                    <label>Top 10 Consistency %</label>
+                    <input type="number" id="pct_top10" value="15">
+                </div>
+                <div class="input-group">
+                    <label>Weekly Winners %</label>
+                    <input type="number" id="pct_weekly" value="10">
+                </div>
+                <div class="input-group">
+                    <label>Constructor Cup %</label>
+                    <input type="number" id="pct_constructor" value="10">
+                </div>
+                <div class="input-group">
+                    <label>Fastest Lap/Bonus %</label>
+                    <input type="number" id="pct_bonus" value="10">
+                </div>
+            </div>
+            <p id="warn-pct" style="color:red; font-size:0.8rem; margin-top:15px; display:none;">⚠️ Total must equal 100%!</p>
         </div>
 
         <div class="card">
-            <h2>Prize Distribution Logic</h2>
-            <div class="stat-box"><span>Season Podium (55%)</span><span id="p-podium">0 BNB</span></div>
-            <div class="stat-box"><span>Season Top 10 (15%)</span><span id="p-top10">0 BNB</span></div>
-            <div class="stat-box"><span>Constructor Cup (10%)</span><span id="p-team">0 BNB</span></div>
-            <div class="stat-box"><span>Weekly/Fastest (20%)</span><span id="p-bonus">0 BNB</span></div>
-            <hr border="0" style="border-top:1px solid #333;">
-            <button class="btn-claim" style="width:100%; margin-top:10px;">CLAIM ALL EARNINGS</button>
+            <h2>Tiering & Point Logic</h2>
+            <div class="grid-config">
+                <div class="input-group">
+                    <label>Min Cars Per Tier</label>
+                    <input type="number" id="min_tier_cars" value="20">
+                </div>
+                <div class="input-group">
+                    <label>Base Points (Pos 1)</label>
+                    <input type="number" id="base_points" value="1000">
+                </div>
+                <div class="input-group">
+                    <label>Decay Rate (%)</label>
+                    <input type="number" id="decay_rate" value="5">
+                </div>
+            </div>
+            <h3 style="font-size:0.9rem; margin-top:20px; color:#888;">FIELD SIZE MULTIPLIERS</h3>
+            <div class="grid-config">
+                <div class="input-group"><label>< 50 Cars</label><input type="number" id="m_small" step="0.1" value="0.5"></div>
+                <div class="input-group"><label>51-200 Cars</label><input type="number" id="m_med" step="0.1" value="1.0"></div>
+                <div class="input-group"><label>201-500 Cars</label><input type="number" id="m_large" step="0.1" value="1.5"></div>
+                <div class="input-group"><label>501+ Cars</label><input type="number" id="m_ultra" step="0.1" value="2.0"></div>
+            </div>
         </div>
+
+        <div class="card">
+            <h2>Promotion Windows</h2>
+            <p style="font-size:0.8rem; color:#888;">Promotion occurs automatically at Rounds 5, 10, and 15.</p>
+            <div class="grid-config">
+                <div class="input-group">
+                    <label>Promotion Top %</label>
+                    <input type="number" id="promo_pct" value="10">
+                </div>
+                <div class="input-group">
+                    <label>Point Carryover (%)</label>
+                    <input type="number" id="point_carryover" value="50">
+                </div>
+            </div>
+        </div>
+
+        <button class="btn-save" onclick="saveSetup()">💾 SAVE SEASON CONFIGURATION</button>
     </div>
 
     <script type="module">
         import { initializeApp } from "https://www.gstatic.com/firebasejs/9.6.1/firebase-app.js";
-        import { getDatabase, ref, onValue, get } from "https://www.gstatic.com/firebasejs/9.6.1/firebase-database.js";
+        import { getDatabase, ref, update, get } from "https://www.gstatic.com/firebasejs/9.6.1/firebase-database.js";
 
         const firebaseConfig = { apiKey: "AlzaSyBYxLOGFzaHN6CS4ro_bjnKEblbQE6Vtx4", databaseURL: "https://nuclearf1-94a6b-default-rtdb.asia-southeast1.firebasedatabase.app" };
         const app = initializeApp(firebaseConfig);
         const db = getDatabase(app);
 
-        // --- CORE MATH FUNCTIONS ---
-        const calculatePoints = (pos, fieldSize) => {
-            const base = 1000 * Math.pow(0.95, pos - 1);
-            let multiplier = 0.5;
-            if (fieldSize > 500) multiplier = 2.0;
-            else if (fieldSize > 200) multiplier = 1.5;
-            else if (fieldSize > 50) multiplier = 1.0;
-            return Math.round(base * multiplier);
-        };
-
-        const getTier = (rank, total) => {
-            if (total <= 60) return "Single Grid";
-            if (total <= 200) return rank <= total * 0.4 ? "Pro" : "Amateur";
-            if (rank <= total * 0.1) return "Diamond";
-            if (rank <= total * 0.4) return "Gold";
-            return "Silver";
-        };
-
-        // --- DATA PROCESSING ---
-        onValue(ref(db, '/'), async (snap) => {
-            const data = snap.val();
-            const cars = Object.values(data.cars || {});
-            const poolBNB = data.prize_pool || 5.5; // Default for demo
-
-            document.getElementById('totalBNB').innerText = `${poolBNB} BNB`;
-            document.getElementById('p-podium').innerText = `${(poolBNB * 0.55).toFixed(2)} BNB`;
-            document.getElementById('p-top10').innerText = `${(poolBNB * 0.15).toFixed(2)} BNB`;
-            document.getElementById('p-team').innerText = `${(poolBNB * 0.10).toFixed(2)} BNB`;
-            document.getElementById('p-bonus').innerText = `${(poolBNB * 0.20).toFixed(2)} BNB`;
-
-            // 1. Sort by total distance/points
-            const sortedCars = cars.sort((a,b) => (b.total_dist || 0) - (a.total_dist || 0));
-            const total = sortedCars.length;
-
-            // 2. Process Drivers & Tiers
-            let driverHTML = "";
-            let teamPoints = {};
-
-            sortedCars.forEach((car, index) => {
-                const rank = index + 1;
-                const tier = getTier(rank, total);
-                const points = calculatePoints(rank, total);
-                const owner = car.owner || "0xUnknown...";
-
-                // Constructor Logic: Track all cars for owner
-                if (!teamPoints[owner]) teamPoints[owner] = [];
-                teamPoints[owner].push(points);
-
-                driverHTML += `
-                    <tr>
-                        <td><b>#${rank}</b></td>
-                        <td>${car.id}</td>
-                        <td style="font-size:0.7rem; opacity:0.7;">${owner}</td>
-                        <td><span class="tier-badge ${tier.toLowerCase()}">${tier}</span></td>
-                        <td>${points.toLocaleString()}</td>
-                        <td>${(points * 0.0001).toFixed(4)} BNB</td>
-                    </tr>
-                `;
-            });
-            document.getElementById('driverBody').innerHTML = driverHTML;
-
-            // 3. Process Constructor Standings (Top 2 Logic)
-            const teamRankings = Object.entries(teamPoints).map(([owner, scores]) => {
-                // Sort scores descending and take top 2
-                const top2Sum = scores.sort((a,b) => b-a).slice(0, 2).reduce((a,b) => a+b, 0);
-                return { owner, score: top2Sum };
-            }).sort((a,b) => b.score - a.score);
-
-            document.getElementById('teamBody').innerHTML = teamRankings.map((team, idx) => `
-                <tr>
-                    <td>${idx+1}</td>
-                    <td style="font-size:0.75rem;">${team.owner}</td>
-                    <td>${team.score.toLocaleString()}</td>
-                </tr>
-            `).join('');
+        // Load current settings from Firebase
+        window.addEventListener('load', async () => {
+            const snap = await get(ref(db, 'season_config'));
+            if(snap.exists()) {
+                const cfg = snap.val();
+                document.getElementById('total_pool').value = cfg.total_pool || 10;
+                document.getElementById('pct_podium').value = cfg.prizes.podium;
+                document.getElementById('pct_top10').value = cfg.prizes.top10;
+                document.getElementById('pct_weekly').value = cfg.prizes.weekly;
+                document.getElementById('pct_constructor').value = cfg.prizes.constructor;
+                document.getElementById('pct_bonus').value = cfg.prizes.bonus;
+                
+                document.getElementById('min_tier_cars').value = cfg.tiers.min_cars;
+                document.getElementById('base_points').value = cfg.points.base;
+                document.getElementById('decay_rate').value = (1 - cfg.points.decay) * 100;
+            }
         });
 
+        window.saveSetup = async () => {
+            const p1 = parseInt(document.getElementById('pct_podium').value);
+            const p2 = parseInt(document.getElementById('pct_top10').value);
+            const p3 = parseInt(document.getElementById('pct_weekly').value);
+            const p4 = parseInt(document.getElementById('pct_constructor').value);
+            const p5 = parseInt(document.getElementById('pct_bonus').value);
+
+            if(p1 + p2 + p3 + p4 + p5 !== 100) {
+                document.getElementById('warn-pct').style.display = 'block';
+                return;
+            } else {
+                document.getElementById('warn-pct').style.display = 'none';
+            }
+
+            const config = {
+                total_pool: parseFloat(document.getElementById('total_pool').value),
+                prizes: { podium: p1, top10: p2, weekly: p3, constructor: p4, bonus: p5 },
+                tiers: { min_cars: parseInt(document.getElementById('min_tier_cars').value) },
+                points: {
+                    base: parseInt(document.getElementById('base_points').value),
+                    decay: 1 - (parseInt(document.getElementById('decay_rate').value) / 100),
+                    multipliers: {
+                        small: parseFloat(document.getElementById('m_small').value),
+                        med: parseFloat(document.getElementById('m_med').value),
+                        large: parseFloat(document.getElementById('m_large').value),
+                        ultra: parseFloat(document.getElementById('m_ultra').value)
+                    }
+                },
+                promotions: {
+                    top_pct: parseInt(document.getElementById('promo_pct').value),
+                    carryover: parseInt(document.getElementById('point_carryover').value) / 100
+                }
+            };
+
+            await update(ref(db, 'season_config'), config);
+            alert("Season settings updated! The Master Page will use these values for the next calculation.");
+        };
     </script>
 </body>
 </html>

@@ -8,160 +8,107 @@
         body { margin: 0; padding: 20px; font-family: 'Inter', sans-serif; background: var(--bg); color: white; display: flex; flex-direction: column; align-items: center; }
         .container { width: 100%; max-width: 1000px; }
         .card { background: var(--glass); border: 1px solid rgba(255,255,255,0.1); border-radius: 15px; padding: 25px; margin-bottom: 20px; }
-        h2 { color: var(--gold); margin-top: 0; border-bottom: 1px solid #333; padding-bottom: 10px; display: flex; justify-content: space-between; }
         .grid-config { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 20px; }
-        .input-group { display: flex; flex-direction: column; gap: 8px; }
-        label { font-size: 0.8rem; color: #aaa; text-transform: uppercase; letter-spacing: 1px; }
-        input { background: #000; border: 1px solid #444; color: var(--accent); padding: 10px; border-radius: 5px; font-family: monospace; }
+        .input-group { display: flex; flex-direction: column; gap: 8px; margin-bottom: 15px; }
+        input { background: #000; border: 1px solid #444; color: var(--accent); padding: 10px; border-radius: 5px; }
         .btn-save { background: var(--accent); color: #000; border: none; padding: 15px 30px; border-radius: 8px; font-weight: bold; cursor: pointer; width: 100%; transition: 0.3s; }
-        .btn-save:hover { background: #00d4aa; box-shadow: 0 0 15px rgba(0,255,204,0.3); }
-        .percentage-display { font-size: 0.7rem; color: var(--gold); margin-top: 5px; }
+        .highlight-val { color: var(--gold); font-weight: bold; }
     </style>
 </head>
 <body>
 
     <div class="container">
-        <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:20px;">
-            <h1>⚙️ Season Setup</h1>
-            <button class="btn-save" style="width:auto;" onclick="window.location.href='master.html'">Back to Master</button>
+        <h1>⚙️ Season Ranking & Prize Setup</h1>
+
+        <div class="card">
+            <h2>Live Funding Data</h2>
+            <div class="grid-config">
+                <div class="input-group">
+                    <label>Sponsor Pool (BNB)</label>
+                    <input type="number" id="sponsor_pool" readonly value="0.00">
+                </div>
+                <div class="input-group">
+                    <label>Funding Pool (BNB)</label>
+                    <input type="number" id="funding_pool" readonly value="0.00">
+                </div>
+                <div class="input-group">
+                    <label>Total Combined Pool</label>
+                    <div id="total_display" class="highlight-val" style="font-size: 1.5rem;">0.00 BNB</div>
+                </div>
+            </div>
         </div>
 
         <div class="card">
-            <h2>Prize Pool Allocation (BNB)</h2>
-            <div class="input-group" style="margin-bottom:20px;">
-                <label>Total Season Pool (BNB)</label>
-                <input type="number" id="total_pool" step="0.1" value="10.0">
-            </div>
+            <h2>Tiering & Points</h2>
             <div class="grid-config">
                 <div class="input-group">
-                    <label>Podium (1st-3rd) %</label>
-                    <input type="number" id="pct_podium" value="55">
-                </div>
-                <div class="input-group">
-                    <label>Top 10 Consistency %</label>
-                    <input type="number" id="pct_top10" value="15">
-                </div>
-                <div class="input-group">
-                    <label>Weekly Winners %</label>
-                    <input type="number" id="pct_weekly" value="10">
-                </div>
-                <div class="input-group">
-                    <label>Constructor Cup %</label>
-                    <input type="number" id="pct_constructor" value="10">
-                </div>
-                <div class="input-group">
-                    <label>Fastest Lap/Bonus %</label>
-                    <input type="number" id="pct_bonus" value="10">
-                </div>
-            </div>
-            <p id="warn-pct" style="color:red; font-size:0.8rem; margin-top:15px; display:none;">⚠️ Total must equal 100%!</p>
-        </div>
-
-        <div class="card">
-            <h2>Tiering & Point Logic</h2>
-            <div class="grid-config">
-                <div class="input-group">
-                    <label>Min Cars Per Tier</label>
-                    <input type="number" id="min_tier_cars" value="20">
-                </div>
-                <div class="input-group">
-                    <label>Base Points (Pos 1)</label>
+                    <label>Base Points (P1)</label>
                     <input type="number" id="base_points" value="1000">
                 </div>
                 <div class="input-group">
-                    <label>Decay Rate (%)</label>
-                    <input type="number" id="decay_rate" value="5">
+                    <label>Decay Multiplier</label>
+                    <input type="number" id="decay_rate" step="0.01" value="0.95">
                 </div>
-            </div>
-            <h3 style="font-size:0.9rem; margin-top:20px; color:#888;">FIELD SIZE MULTIPLIERS</h3>
-            <div class="grid-config">
-                <div class="input-group"><label>< 50 Cars</label><input type="number" id="m_small" step="0.1" value="0.5"></div>
-                <div class="input-group"><label>51-200 Cars</label><input type="number" id="m_med" step="0.1" value="1.0"></div>
-                <div class="input-group"><label>201-500 Cars</label><input type="number" id="m_large" step="0.1" value="1.5"></div>
-                <div class="input-group"><label>501+ Cars</label><input type="number" id="m_ultra" step="0.1" value="2.0"></div>
+                <div class="input-group">
+                    <label>Promotion Window (Rounds)</label>
+                    <input type="number" id="promo_window" value="5">
+                </div>
+                <div class="input-group">
+                    <label>Carryover %</label>
+                    <input type="number" id="carry_pct" value="50">
+                </div>
             </div>
         </div>
 
         <div class="card">
-            <h2>Promotion Windows</h2>
-            <p style="font-size:0.8rem; color:#888;">Promotion occurs automatically at Rounds 5, 10, and 15.</p>
+            <h2>Prize Distribution (%)</h2>
             <div class="grid-config">
-                <div class="input-group">
-                    <label>Promotion Top %</label>
-                    <input type="number" id="promo_pct" value="10">
-                </div>
-                <div class="input-group">
-                    <label>Point Carryover (%)</label>
-                    <input type="number" id="point_carryover" value="50">
-                </div>
+                <div class="input-group"><label>Podium (1-3)</label><input type="number" class="pct" data-key="podium" value="55"></div>
+                <div class="input-group"><label>Top 10</label><input type="number" class="pct" data-key="top10" value="15"></div>
+                <div class="input-group"><label>Weekly</label><input type="number" class="pct" data-key="weekly" value="10"></div>
+                <div class="input-group"><label>Constructor</label><input type="number" class="pct" data-key="constructor" value="10"></div>
+                <div class="input-group"><label>Bonus/Fastest</label><input type="number" class="pct" data-key="bonus" value="10"></div>
             </div>
         </div>
 
-        <button class="btn-save" onclick="saveSetup()">💾 SAVE SEASON CONFIGURATION</button>
+        <button class="btn-save" onclick="saveSeasonConfig()">💾 SYNC CONFIG & START ROUND</button>
     </div>
 
     <script type="module">
         import { initializeApp } from "https://www.gstatic.com/firebasejs/9.6.1/firebase-app.js";
-        import { getDatabase, ref, update, get } from "https://www.gstatic.com/firebasejs/9.6.1/firebase-database.js";
+        import { getDatabase, ref, onValue, update, get } from "https://www.gstatic.com/firebasejs/9.6.1/firebase-database.js";
 
         const firebaseConfig = { apiKey: "AlzaSyBYxLOGFzaHN6CS4ro_bjnKEblbQE6Vtx4", databaseURL: "https://nuclearf1-94a6b-default-rtdb.asia-southeast1.firebasedatabase.app" };
         const app = initializeApp(firebaseConfig);
         const db = getDatabase(app);
 
-        // Load current settings from Firebase
-        window.addEventListener('load', async () => {
-            const snap = await get(ref(db, 'season_config'));
-            if(snap.exists()) {
-                const cfg = snap.val();
-                document.getElementById('total_pool').value = cfg.total_pool || 10;
-                document.getElementById('pct_podium').value = cfg.prizes.podium;
-                document.getElementById('pct_top10').value = cfg.prizes.top10;
-                document.getElementById('pct_weekly').value = cfg.prizes.weekly;
-                document.getElementById('pct_constructor').value = cfg.prizes.constructor;
-                document.getElementById('pct_bonus').value = cfg.prizes.bonus;
-                
-                document.getElementById('min_tier_cars').value = cfg.tiers.min_cars;
-                document.getElementById('base_points').value = cfg.points.base;
-                document.getElementById('decay_rate').value = (1 - cfg.points.decay) * 100;
-            }
+        // Fetch Live Pool Data from other pages
+        onValue(ref(db, 'funding_data'), (snap) => {
+            const data = snap.val() || { sponsor: 0, player_funding: 0 };
+            document.getElementById('sponsor_pool').value = data.sponsor;
+            document.getElementById('funding_pool').value = data.player_funding;
+            const total = parseFloat(data.sponsor) + parseFloat(data.player_funding);
+            document.getElementById('total_display').innerText = total.toFixed(2) + " BNB";
         });
 
-        window.saveSetup = async () => {
-            const p1 = parseInt(document.getElementById('pct_podium').value);
-            const p2 = parseInt(document.getElementById('pct_top10').value);
-            const p3 = parseInt(document.getElementById('pct_weekly').value);
-            const p4 = parseInt(document.getElementById('pct_constructor').value);
-            const p5 = parseInt(document.getElementById('pct_bonus').value);
-
-            if(p1 + p2 + p3 + p4 + p5 !== 100) {
-                document.getElementById('warn-pct').style.display = 'block';
-                return;
-            } else {
-                document.getElementById('warn-pct').style.display = 'none';
-            }
-
+        window.saveSeasonConfig = async () => {
+            const pcts = {};
+            document.querySelectorAll('.pct').forEach(el => pcts[el.dataset.key] = parseInt(el.value));
+            
             const config = {
-                total_pool: parseFloat(document.getElementById('total_pool').value),
-                prizes: { podium: p1, top10: p2, weekly: p3, constructor: p4, bonus: p5 },
-                tiers: { min_cars: parseInt(document.getElementById('min_tier_cars').value) },
                 points: {
                     base: parseInt(document.getElementById('base_points').value),
-                    decay: 1 - (parseInt(document.getElementById('decay_rate').value) / 100),
-                    multipliers: {
-                        small: parseFloat(document.getElementById('m_small').value),
-                        med: parseFloat(document.getElementById('m_med').value),
-                        large: parseFloat(document.getElementById('m_large').value),
-                        ultra: parseFloat(document.getElementById('m_ultra').value)
-                    }
+                    decay: parseFloat(document.getElementById('decay_rate').value)
                 },
-                promotions: {
-                    top_pct: parseInt(document.getElementById('promo_pct').value),
-                    carryover: parseInt(document.getElementById('point_carryover').value) / 100
-                }
+                rules: {
+                    promo_round: parseInt(document.getElementById('promo_window').value),
+                    carryover: parseInt(document.getElementById('carry_pct').value) / 100
+                },
+                allocation: pcts
             };
 
             await update(ref(db, 'season_config'), config);
-            alert("Season settings updated! The Master Page will use these values for the next calculation.");
+            alert("Season logic synced to Master Engine.");
         };
     </script>
 </body>

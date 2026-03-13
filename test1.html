@@ -1,0 +1,68 @@
+/**
+ * SANRAT Race Point Calculator
+ * Handles dynamic scaling, tiers, and constructor logic.
+ */
+
+function calculateRaceResults(participants) {
+    const totalCars = participants.length;
+    let multiplier = 0.5;
+
+    // 1. Determine Multiplier based on Field Size
+    if (totalCars > 3000) multiplier = 2.0;
+    else if (totalCars > 200) multiplier = 1.5;
+    else if (totalCars > 60) multiplier = 1.0;
+
+    // 2. Sort participants by finish rank (assuming input might be unsorted)
+    const sortedField = participants.sort((a, b) => a.rank - b.rank);
+
+    // 3. Calculate Individual Points
+    const processedCars = sortedField.map(car => {
+        let points = 0;
+        
+        // Bottom 50% Rule
+        if (car.rank > (totalCars / 2)) {
+            points = 1; // Participation dust
+        } else {
+            // Exponential Formula: Base 1000 * 0.95^(rank-1) * multiplier
+            points = Math.round((1000 * Math.pow(0.95, car.rank - 1)) * multiplier);
+        }
+
+        return { ...car, pointsEarned: points };
+    });
+
+    // 4. Constructor (Team) Logic: Max 2 cars per team
+    const teamPoints = {};
+    processedCars.forEach(car => {
+        if (!teamPoints[car.teamId]) {
+            teamPoints[car.teamId] = [];
+        }
+        teamPoints[car.teamId].push(car.pointsEarned);
+    });
+
+    const constructorStandings = Object.keys(teamPoints).map(teamId => {
+        // Sort team's car points descending and take top 2
+        const topTwoPoints = teamPoints[teamId]
+            .sort((a, b) => b - a)
+            .slice(0, 2)
+            .reduce((sum, p) => sum + p, 0);
+
+        return { teamId: teamId, totalTeamPoints: topTwoPoints };
+    });
+
+    return {
+        individualResults: processedCars,
+        constructorResults: constructorStandings.sort((a, b) => b.totalTeamPoints - a.totalTeamPoints)
+    };
+}
+
+// --- Example Usage ---
+const mockRace = [
+    { carId: "NFT_1", teamId: "Team_A", rank: 1 },
+    { carId: "NFT_2", teamId: "Team_A", rank: 2 },
+    { carId: "NFT_3", teamId: "Team_A", rank: 5 }, // This car shouldn't count for Team A
+    { carId: "NFT_4", teamId: "Team_B", rank: 3 },
+    { carId: "NFT_5", teamId: "Team_B", rank: 4 },
+];
+
+const results = calculateRaceResults(mockRace);
+console.log(results);

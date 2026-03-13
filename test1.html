@@ -1,133 +1,172 @@
-/**
- * SANRAT Race Point Calculator - RECTIFIED
- * Optimized for TBNB/Point precision and robust tiering.
- */
-
-function calculateRaceResults(participants, config = {}) {
-    // 1. Configuration with Defaults
-    const {
-        basePoints = 1000,
-        decayFactor = 0.95,
-        minPoints = 1,
-        topCarsPerTeam = 2,
-        // Thresholds ordered DESCENDING for proper 'break' logic
-        multiplierThresholds = [
-            { min: 3001, multiplier: 2.0 },
-            { min: 201, max: 3000, multiplier: 1.5 },
-            { min: 61, max: 200, multiplier: 1.0 },
-            { min: 1, max: 60, multiplier: 0.5 }
-        ]
-    } = config;
-
-    // 2. Input Validation
-    if (!Array.isArray(participants)) throw new Error('Participants must be an array');
-    if (participants.length === 0) {
-        return { metadata: { totalCars: 0 }, individualResults: [], constructorResults: [] };
-    }
-
-    // Validate fields and check for unique ranks
-    const rankCheck = new Set();
-    participants.forEach((car, index) => {
-        if (!car.carId || !car.teamId || typeof car.rank !== 'number') {
-            throw new Error(`Invalid data at index ${index}. Ensure carId, teamId, and rank (number) exist.`);
-        }
-        if (rankCheck.has(car.rank)) throw new Error(`Duplicate rank detected: ${car.rank}`);
-        rankCheck.add(car.rank);
-    });
-
-    const totalCars = participants.length;
-
-    // 3. Determine Multiplier
-    let multiplier = 0.5; 
-    for (const threshold of multiplierThresholds) {
-        if (totalCars >= threshold.min && (!threshold.max || totalCars <= threshold.max)) {
-            multiplier = threshold.multiplier;
-            break;
-        }
-    }
-
-    // 4. Individual Points Calculation
-    const processedCars = participants.map(car => {
-        let points;
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>SANRAT | Logic Test Bench</title>
+    <style>
+        :root { --accent: #00ffcc; --gold: #ffcc00; --bg: #0b0e14; }
+        body { margin: 0; font-family: 'Inter', sans-serif; background: var(--bg); color: white; display: flex; flex-direction: column; height: 100vh; }
         
-        // The "Points Zone" is the top 50% of the field
-        const pointsZoneLimit = Math.ceil(totalCars / 2);
+        header { padding: 20px; border-bottom: 1px solid #333; display: flex; justify-content: space-between; align-items: center; }
+        .main-container { display: flex; flex: 1; overflow: hidden; }
+        
+        /* Left Side: Inputs */
+        .input-panel { width: 40%; padding: 20px; border-right: 1px solid #333; overflow-y: auto; display: flex; flex-direction: column; gap: 20px; }
+        textarea { background: #000; color: var(--accent); border: 1px solid #444; padding: 15px; font-family: monospace; border-radius: 8px; flex: 1; min-height: 300px; resize: none; }
+        
+        /* Right Side: Results */
+        .output-panel { width: 60%; padding: 20px; overflow-y: auto; background: rgba(255,255,255,0.02); }
+        
+        /* UI Elements */
+        .config-row { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-bottom: 15px; }
+        .input-group { display: flex; flex-direction: column; gap: 5px; }
+        label { font-size: 0.7rem; color: #888; text-transform: uppercase; }
+        input { background: #111; border: 1px solid #444; color: white; padding: 8px; border-radius: 4px; }
+        
+        .btn-run { background: var(--accent); color: black; border: none; padding: 15px; border-radius: 8px; font-weight: 900; cursor: pointer; text-transform: uppercase; }
+        
+        table { width: 100%; border-collapse: collapse; margin-top: 10px; font-size: 0.9rem; }
+        th { text-align: left; color: #888; padding: 10px; border-bottom: 2px solid #333; }
+        td { padding: 10px; border-bottom: 1px solid #222; }
+        .tier-tag { font-size: 0.7rem; padding: 2px 6px; border-radius: 3px; background: #333; }
+        .win { color: var(--gold); font-weight: bold; }
+    </style>
+</head>
+<body>
 
-        if (car.rank > pointsZoneLimit) {
-            points = minPoints; 
-        } else {
-            // Formula: base * decay^(rank-1) * multiplier
-            const rawPoints = basePoints * Math.pow(decayFactor, car.rank - 1) * multiplier;
-            // Use Math.round to avoid floating point issues in point totals
-            points = Math.max(minPoints, Math.round(rawPoints));
+    <header>
+        <h2 style="margin:0;">🧪 SANRAT LOGIC TEST BENCH</h2>
+        <div id="multiplierDisplay" style="color:var(--accent); font-weight:bold;">Multiplier: 0.5x</div>
+    </header>
+
+    <div class="main-container">
+        <div class="input-panel">
+            <div class="config-row">
+                <div class="input-group">
+                    <label>Base Points</label>
+                    <input type="number" id="basePts" value="1000">
+                </div>
+                <div class="input-group">
+                    <label>Decay Factor</label>
+                    <input type="number" id="decay" value="0.95" step="0.01">
+                </div>
+            </div>
+            
+            <label>Mock Participant Data (JSON)</label>
+            <textarea id="jsonInput">[
+  {"carId": "NFT-001", "teamId": "RED_BULL", "rank": 1},
+  {"carId": "NFT-002", "teamId": "FERRARI", "rank": 2},
+  {"carId": "NFT-003", "teamId": "RED_BULL", "rank": 3},
+  {"carId": "NFT-004", "teamId": "MERCEDES", "rank": 4},
+  {"carId": "NFT-005", "teamId": "FERRARI", "rank": 5}
+]</textarea>
+            
+            <button class="btn-run" onclick="runTest()">⚡ RUN CALCULATION</button>
+        </div>
+
+        <div class="output-panel">
+            <h3>Individual Results</h3>
+            <table id="indTable">
+                <thead>
+                    <tr><th>Rank</th><th>Car ID</th><th>Team</th><th>Points</th><th>Zone</th></tr>
+                </thead>
+                <tbody></tbody>
+            </table>
+
+            <h3 style="margin-top:40px;">Constructor Standings (Top 2 Counting)</h3>
+            <table id="conTable">
+                <thead>
+                    <tr><th>Pos</th><th>Team ID</th><th>Total Points</th><th>Counting Cars</th></tr>
+                </thead>
+                <tbody></tbody>
+            </table>
+        </div>
+    </div>
+
+    <script>
+        function calculateRaceResults(participants, config = {}) {
+            const { basePoints, decayFactor, minPoints = 1, topCarsPerTeam = 2 } = config;
+            const multiplierThresholds = [
+                { min: 3001, multiplier: 2.0 },
+                { min: 201, max: 3000, multiplier: 1.5 },
+                { min: 61, max: 200, multiplier: 1.0 },
+                { min: 1, max: 60, multiplier: 0.5 }
+            ];
+
+            const totalCars = participants.length;
+            let multiplier = 0.5;
+            for (const t of multiplierThresholds) {
+                if (totalCars >= t.min && (!t.max || totalCars <= t.max)) {
+                    multiplier = t.multiplier;
+                    break;
+                }
+            }
+
+            const pointsZoneLimit = Math.ceil(totalCars / 2);
+
+            const processedCars = participants.map(car => {
+                let pts = (car.rank > pointsZoneLimit) ? minPoints : Math.max(minPoints, Math.round(basePoints * Math.pow(decayFactor, car.rank - 1) * multiplier));
+                return { ...car, pts, inZone: car.rank <= pointsZoneLimit };
+            }).sort((a,b) => a.rank - b.rank);
+
+            const teamGroups = {};
+            processedCars.forEach(c => {
+                if (!teamGroups[c.teamId]) teamGroups[c.teamId] = [];
+                teamGroups[c.teamId].push(c);
+            });
+
+            const constructorResults = Object.entries(teamGroups).map(([teamId, cars]) => {
+                const counting = [...cars].sort((a,b) => b.pts - a.pts).slice(0, topCarsPerTeam);
+                const total = counting.reduce((sum, c) => sum + c.pts, 0);
+                return { teamId, total, counting };
+            }).sort((a,b) => b.total - a.total);
+
+            return { multiplier, processedCars, constructorResults };
         }
 
-        return {
-            ...car,
-            pointsEarned: points,
-            multiplierUsed: multiplier,
-            inPointsZone: car.rank <= pointsZoneLimit
-        };
-    }).sort((a, b) => a.rank - b.rank);
+        function runTest() {
+            try {
+                const data = JSON.parse(document.getElementById('jsonInput').value);
+                const config = {
+                    basePoints: Number(document.getElementById('basePts').value),
+                    decayFactor: Number(document.getElementById('decay').value)
+                };
 
-    // 5. Constructor (Team) Logic
-    const teamGroups = {};
-    processedCars.forEach(car => {
-        if (!teamGroups[car.teamId]) teamGroups[car.teamId] = [];
-        teamGroups[car.teamId].push(car);
-    });
+                const res = calculateRaceResults(data, config);
+                
+                // Update UI
+                document.getElementById('multiplierDisplay').innerText = `Multiplier: ${res.multiplier}x`;
+                
+                // Render Individual
+                const indTbody = document.querySelector('#indTable tbody');
+                indTbody.innerHTML = res.processedCars.map(c => `
+                    <tr>
+                        <td>${c.rank}</td>
+                        <td class="${c.rank === 1 ? 'win' : ''}">${c.carId}</td>
+                        <td>${c.teamId}</td>
+                        <td style="color:var(--accent)">${c.pts}</td>
+                        <td><span class="tier-tag">${c.inZone ? 'Points' : 'Participation'}</span></td>
+                    </tr>
+                `).join('');
 
-    const constructorResults = Object.entries(teamGroups).map(([teamId, cars]) => {
-        // Sort team's cars by points descending
-        const sortedTeamCars = [...cars].sort((a, b) => b.pointsEarned - a.pointsEarned);
-        
-        // Take top N (e.g., top 2)
-        const countingCars = sortedTeamCars.slice(0, topCarsPerTeam);
-        const totalTeamPoints = countingCars.reduce((sum, c) => sum + c.pointsEarned, 0);
+                // Render Constructor
+                const conTbody = document.querySelector('#conTable tbody');
+                conTbody.innerHTML = res.constructorResults.map((t, i) => `
+                    <tr>
+                        <td>${i+1}</td>
+                        <td class="${i === 0 ? 'win' : ''}">${t.teamId}</td>
+                        <td>${t.total}</td>
+                        <td style="font-size:0.7rem; color:#888;">${t.counting.map(c => c.carId).join(', ')}</td>
+                    </tr>
+                `).join('');
 
-        return {
-            teamId,
-            totalTeamPoints,
-            totalCarsInTeam: cars.length,
-            countingCars: countingCars.map(c => ({ carId: c.carId, points: c.pointsEarned, rank: c.rank }))
-        };
-    }).sort((a, b) => b.totalTeamPoints - a.totalTeamPoints);
+            } catch (e) {
+                alert("Invalid JSON data: " + e.message);
+            }
+        }
 
-    return {
-        metadata: {
-            totalCars,
-            multiplierUsed: multiplier,
-            timestamp: new Date().toISOString(),
-            config: { basePoints, decayFactor, topCarsPerTeam }
-        },
-        individualResults: processedCars,
-        constructorResults: constructorResults.map((team, i) => ({ ...team, position: i + 1 }))
-    };
-}
-
-/**
- * Utility for Testing Display
- */
-function formatResults(res) {
-    if (res.metadata.totalCars === 0) return "Empty Race.";
-    
-    let report = `\n--- SANRAT RACE REPORT [${res.metadata.multiplierUsed}x Multiplier] ---\n`;
-    report += `Top Individual: ${res.individualResults[0].carId} (${res.individualResults[0].pointsEarned} pts)\n`;
-    report += `Top Constructor: ${res.constructorResults[0].teamId} (${res.constructorResults[0].totalTeamPoints} pts)\n`;
-    report += `--------------------------------------\n`;
-    return report;
-}
-
-// --- TEST SUITE ---
-
-const mockRace = [
-    { carId: "ACE", teamId: "RED_BULL", rank: 1 },
-    { carId: "FLY", teamId: "RED_BULL", rank: 3 },
-    { carId: "ZEN", teamId: "FERRARI", rank: 2 },
-    { carId: "MAX", teamId: "FERRARI", rank: 4 },
-    { carId: "BOT", teamId: "MERCEDES", rank: 5 }
-];
-
-const results = calculateRaceResults(mockRace, { basePoints: 1000, decayFactor: 0.90 });
-console.log(formatResults(results));
-console.log("Detailed Constructor Data:", JSON.stringify(results.constructorResults, null, 2));
+        // Run once on load
+        runTest();
+    </script>
+</body>
+</html>

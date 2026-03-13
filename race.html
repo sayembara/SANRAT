@@ -8,10 +8,17 @@
         body { margin: 0; padding: 20px; font-family: 'Inter', sans-serif; background: var(--bg); color: white; }
         .card { background: var(--glass); border: 1px solid rgba(255,255,255,0.1); border-radius: 15px; padding: 20px; margin-bottom: 20px; }
         
+        /* Top Navigation */
+        .header-nav { display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px; width: 100%; }
+        .btn-nav { background: #333; color: white; border: 1px solid #444; padding: 10px 20px; border-radius: 8px; cursor: pointer; font-weight: bold; margin-left: 10px; }
+        .btn-nav:hover { background: #444; }
+
         /* Track Styles */
         .track-box { background: #000; height: 350px; position: relative; border-radius: 10px; border: 1px solid #444; overflow: hidden; }
         .track-lane { position: relative; width: 100%; height: 35px; border-bottom: 1px solid #222; }
-        .track-car { position: absolute; height: 20px; width: 35px; border-radius: 3px; top: 7px; font-size: 0.6rem; color: black; font-weight: 900; text-align: center; line-height: 20px; transition: left 0.8s linear; }
+        .track-car { position: absolute; height: 20px; width: 35px; border-radius: 3px; top: 7px; font-size: 0.6rem; color: black; font-weight: 900; text-align: center; line-height: 20px; transition: left 0.8s linear; z-index: 2; }
+        .finish-marker { position: absolute; top: 0; bottom: 0; width: 2px; border-left: 2px dashed var(--danger); z-index: 1; pointer-events: none; }
+        .finish-label { position: absolute; top: 5px; transform: translateX(-50%); font-size: 0.6rem; color: var(--danger); font-weight: bold; }
 
         /* Matrix Styles */
         table { width: 100%; border-collapse: collapse; font-size: 0.8rem; text-align: center; }
@@ -19,25 +26,51 @@
         .active-day { background: rgba(255, 75, 43, 0.2); border: 2px solid var(--danger); }
 
         /* Config Styles */
-        .config-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(250px, 1fr)); gap: 15px; }
+        .config-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 15px; }
         .input-group { display: flex; flex-direction: column; gap: 5px; margin-bottom: 10px; }
+        label { font-size: 0.75rem; color: #aaa; text-transform: uppercase; }
         input { background: #000; border: 1px solid #555; color: var(--accent); padding: 8px; border-radius: 4px; }
-        .formula-box { background: rgba(0,0,0,0.4); padding: 15px; border-radius: 8px; border-left: 4px solid var(--gold); font-family: monospace; }
+        .formula-box { background: rgba(0,0,0,0.4); padding: 15px; border-radius: 8px; border-left: 4px solid var(--gold); font-family: monospace; margin-top: 15px; }
         .btn-update { background: var(--accent); color: #000; border: none; padding: 12px; border-radius: 6px; font-weight: bold; cursor: pointer; margin-top: 10px; width: 100%; }
     </style>
 </head>
 <body>
 
+    <div class="header-nav">
+        <div>
+            SEASON <span id="seasonNum" style="color:var(--gold)">1</span> | 
+            ROUND <span id="roundNum" style="color:var(--gold)">1</span>
+        </div>
+        <div>
+            <button class="btn-nav" onclick="window.location.href='race_constants.html'">⚙️ RACE CONFIG</button>
+            <button class="btn-nav" onclick="window.location.href='ranking_prize.html'">🏆 PRIZE SETUP</button>
+        </div>
+    </div>
+
     <div class="card">
         <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:15px;">
             <h2 style="margin:0;">LIVE RACE TRACK</h2>
-            <div>
-                SEASON <span id="seasonNum" class="highlight-val">1</span> | 
-                ROUND <span id="roundNum" class="highlight-val">1</span> | 
-                <span id="dayLabel" style="color:var(--danger); font-weight:bold;">DAY 1</span>
+            <span id="dayLabel" style="color:var(--danger); font-weight:bold;">DAY 1</span>
+        </div>
+        <div class="track-box" id="master-layer">
+            </div>
+    </div>
+
+    <div class="card">
+        <h3>TRACK GEOMETRY</h3>
+        <div class="config-grid">
+            <div class="input-group">
+                <label>Total Track Length (m)</label>
+                <input type="number" id="total_track_m" value="1500">
+            </div>
+            <div class="input-group">
+                <label>Visual Finish Line (m)</label>
+                <input type="number" id="visual_finish_m" value="1000">
+            </div>
+            <div class="input-group" style="justify-content: flex-end;">
+                <button class="btn-nav" style="margin:0; width:100%;" onclick="resetTrack()">RESET TO DEFAULT</button>
             </div>
         </div>
-        <div class="track-box" id="master-layer"></div>
     </div>
 
     <div class="card">
@@ -52,36 +85,24 @@
         <h3>FIELD SIZE & POINT CONFIGURATION</h3>
         <div class="config-grid">
             <div class="input-group">
-                <label>Tier 1 (e.g. 1-60 Cars)</label>
-                <div style="display:flex; gap:5px;">
-                    <input type="number" id="t1_min" placeholder="Min" value="1">
-                    <input type="number" id="t1_max" placeholder="Max" value="60">
-                    <input type="number" id="t1_mult" step="0.1" placeholder="Mult" value="0.5">
-                </div>
+                <label>Tier 1 Mult (1-60)</label>
+                <input type="number" id="t1_mult" step="0.1" value="0.5">
             </div>
             <div class="input-group">
-                <label>Tier 2 (61-200 Cars)</label>
-                <div style="display:flex; gap:5px;">
-                    <input type="number" id="t2_min" value="61">
-                    <input type="number" id="t2_max" value="200">
-                    <input type="number" id="t2_mult" step="0.1" value="1.0">
-                </div>
+                <label>Tier 2 Mult (61-200)</label>
+                <input type="number" id="t2_mult" step="0.1" value="1.0">
             </div>
             <div class="input-group">
-                <label>Tier 3 (201+ Cars)</label>
-                <div style="display:flex; gap:5px;">
-                    <input type="number" id="t3_min" value="201">
-                    <input type="number" id="t3_max" value="9999">
-                    <input type="number" id="t3_mult" step="0.1" value="1.5">
-                </div>
+                <label>Tier 3 Mult (201+)</label>
+                <input type="number" id="t3_mult" step="0.1" value="1.5">
             </div>
         </div>
 
         <div class="formula-box">
             <strong>Current Formula:</strong><br>
-            Points = <input type="number" id="base_points" value="1000" style="width:70px; display:inline;"> * (0.95)<sup>(Position - 1)</sup> * [Tier Multiplier]
+            Points = <input type="number" id="base_points" value="1000" style="width:70px;"> * (<input type="number" id="decay_const" step="0.01" value="0.95" style="width:60px;">)<sup>(Pos - 1)</sup> * [Tier Mult]
         </div>
-        <button class="btn-update" onclick="saveConfig()">UPDATE FIELD MULTIPLIERS & FORMULA</button>
+        <button class="btn-update" onclick="saveConfig()">UPDATE ALL PARAMETERS</button>
     </div>
 
     <script type="module">
@@ -94,66 +115,73 @@
 
         const icons = { straight:"➡️", right:"⤴️", left:"⤵️", flatland:"➖", uphill:"🔼", downhill:"🔽", dry:"☀️", wet:"🌧️" };
 
-        // SYNC ROUND INFO & TRACK
-        onValue(ref(db, 'race_state'), snap => {
-            const s = snap.val() || { season: 1, round: 1, day_in_round: 1 };
+        // INITIAL LOAD & SYNC
+        onValue(ref(db, '/'), snap => {
+            const data = snap.val();
+            const s = data.race_state || { season:1, round:1, day_in_round:1 };
+            const cfg = data.season_config || {};
+            
             document.getElementById('seasonNum').innerText = s.season;
-            document.getElementById('roundNum').innerText = s.round; // Fixed "undefined"
+            document.getElementById('roundNum').innerText = s.round;
             document.getElementById('dayLabel').innerText = `DAY ${s.day_in_round}`;
-            syncMatrix(s.day_in_round);
+            
+            // Sync Track Geometry
+            const trackLen = cfg.track_len || 1500;
+            const finishLine = cfg.finish_m || 1000;
+            updateTrackUI(trackLen, finishLine, data.cars);
+            
+            syncMatrix(s.day_in_round, data.race_constants);
         });
 
-        // SYNC LIVE CAR POSITIONS
-        onValue(ref(db, 'cars'), snap => {
-            const cars = Object.values(snap.val() || {}).sort((a,b) => (b.total_dist || 0) - (a.total_dist || 0));
+        function updateTrackUI(maxM, finishM, carData) {
             const layer = document.getElementById('master-layer');
             layer.innerHTML = '';
-            cars.filter(c => c.role === 'support').forEach(c => {
-                const p = Math.min((c.total_dist / 2000) * 100, 95);
+            
+            // Add Finish Line
+            const finishPct = (finishM / maxM) * 100;
+            layer.innerHTML += `
+                <div class="finish-marker" style="left: ${finishPct}%"></div>
+                <div class="finish-label" style="left: ${finishPct}%">${finishM}m</div>
+            `;
+
+            // Add Cars
+            const cars = Object.values(carData || {}).filter(c => c.role === 'support');
+            cars.forEach(c => {
+                const p = Math.min(((c.total_dist || 0) / maxM) * 100, 98);
                 layer.innerHTML += `<div class="track-lane"><div class="track-car" style="left:${p}%; background:#00ffcc">${c.id}</div></div>`;
             });
-        });
+        }
 
-        // SYNC 7-DAY MATRIX DATA
-        async function syncMatrix(activeDay) {
-            const cSnap = await get(ref(db, 'race_constants'));
-            const c = cSnap.val();
+        async function syncMatrix(activeDay, c) {
             if(!c || !c.direction) return;
-
             let h = '<th>Type</th>';
             for(let i=1; i<=7; i++) h += `<th class="${i===activeDay?'active-day':''}">D${i}</th>`;
             document.getElementById('mat-head').innerHTML = h;
-
-            const rows = [
-                {l:"Dir", d:c.direction, i:true},
-                {l:"Elev", d:c.elevation, i:true},
-                {l:"Hum", d:c.humidity, s:"%"},
-                {l:"Wx", d:c.weather, i:true}
-            ];
-
-            document.getElementById('mat-body').innerHTML = rows.map(r => `
-                <tr>
-                    <td><b>${r.l}</b></td>
-                    ${r.d.map((v, idx) => `<td class="${idx+1===activeDay?'active-day':''}">${r.i ? (icons[v]||v) : v+(r.s||'')}</td>`).join('')}
-                </tr>
-            `).join('');
+            const rows = [{l:"Dir", d:c.direction, i:true}, {l:"Elev", d:c.elevation, i:true}, {l:"Hum", d:c.humidity, s:"%"}, {l:"Wx", d:c.weather, i:true}];
+            document.getElementById('mat-body').innerHTML = rows.map(r => `<tr><td><b>${r.l}</b></td>${r.d.map((v, idx) => `<td class="${idx+1===activeDay?'active-day':''}">${r.i ? (icons[v]||v) : v+(r.s||'')}</td>`).join('')}</tr>`).join('');
         }
 
-        // SAVE CONFIGURATION
+        window.resetTrack = () => {
+            document.getElementById('total_track_m').value = 1500;
+            document.getElementById('visual_finish_m').value = 1000;
+        };
+
         window.saveConfig = async () => {
             const config = {
-                tiers: [
-                    { min: parseInt(document.getElementById('t1_min').value), max: parseInt(document.getElementById('t1_max').value), mult: parseFloat(document.getElementById('t1_mult').value) },
-                    { min: parseInt(document.getElementById('t2_min').value), max: parseInt(document.getElementById('t2_max').value), mult: parseFloat(document.getElementById('t2_mult').value) },
-                    { min: parseInt(document.getElementById('t3_min').value), max: parseInt(document.getElementById('t3_max').value), mult: parseFloat(document.getElementById('t3_mult').value) }
-                ],
+                track_len: parseInt(document.getElementById('total_track_m').value),
+                finish_m: parseInt(document.getElementById('visual_finish_m').value),
+                tiers: {
+                    t1_mult: parseFloat(document.getElementById('t1_mult').value),
+                    t2_mult: parseFloat(document.getElementById('t2_mult').value),
+                    t3_mult: parseFloat(document.getElementById('t3_mult').value)
+                },
                 points: {
                     base: parseInt(document.getElementById('base_points').value),
-                    decay: 0.95
+                    decay: parseFloat(document.getElementById('decay_const').value)
                 }
             };
             await update(ref(db, 'season_config'), config);
-            alert("Field Multipliers & Point Formula Updated!");
+            alert("All configuration parameters updated!");
         };
     </script>
 </body>
